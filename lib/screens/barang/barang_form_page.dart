@@ -14,7 +14,7 @@ class BarangFormPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final isEdit = Get.arguments != null;
     if (isEdit) {
-      _controller.fetchBarangById(Get.arguments as int);
+      _controller.getBarangById(Get.arguments as int);
     }
 
     return Scaffold(

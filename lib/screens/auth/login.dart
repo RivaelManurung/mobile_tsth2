@@ -1,116 +1,28 @@
-// login_page.dart
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:inventory_tsth2/controller/Auth/auth_controller.dart';
+import 'package:inventory_tsth2/core/routes/routes_name.dart';
 import 'package:inventory_tsth2/screens/auth/signup.dart';
-import 'package:inventory_tsth2/screens/dahsboard/dashboard.dart';
 import 'package:inventory_tsth2/styles/app_colors.dart';
 import 'package:inventory_tsth2/widget/custom_button.dart';
 import 'package:inventory_tsth2/widget/custom_formfield.dart';
 import 'package:inventory_tsth2/widget/custom_header.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-class LoginPage extends StatefulWidget {
+class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
 
   @override
-  _LoginPageState createState() => _LoginPageState();
-}
-
-class _LoginPageState extends State<LoginPage> {
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-  final AuthController _authController = AuthController();
-  bool _isLoading = false;
-  bool _obscureText = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkAuthStatus();
-  }
-
-  Future<void> _checkAuthStatus() async {
-    setState(() => _isLoading = true);
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-      if (token != null) {
-        final isValid = await _authController.verifyToken(token);
-        if (isValid && mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const DashboardPage()),
-          );
-        } else {
-          await prefs.remove('auth_token');
-          await prefs.remove('user');
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Session expired. Please login again.')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _login() async {
-    final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
-
-    if (email.isEmpty || password.isEmpty) {
-      _showError("Email and password cannot be empty");
-      return;
-    }
-
-    if (!email.contains('@')) {
-      _showError("Invalid email format");
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    try {
-      final result = await _authController.login(email, password);
-
-      if (result['success'] && mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const DashboardPage()),
-        );
-      } else {
-        _showError(result['message']);
-      }
-    } catch (e) {
-      _showError("An error occurred. Please try again.");
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  void _showError(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
+    // Retrieve the AuthController instance using GetX
+    final AuthController authController = Get.find<AuthController>();
+
+    // Use the controllers from AuthController
+    final TextEditingController emailController = authController.emailController;
+    final TextEditingController passwordController = authController.passwordController;
+
+    // State for obscuring password
+    final RxBool obscureText = true.obs;
+
     return Scaffold(
       body: SafeArea(
         child: Stack(
@@ -123,10 +35,7 @@ class _LoginPageState extends State<LoginPage> {
             CustomHeader(
               text: 'Log In Inventory TSTH2',
               onTap: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const SignupPage()),
-                );
+                Get.offAll(() => const SignupPage());
               },
             ),
             Positioned(
@@ -159,32 +68,32 @@ class _LoginPageState extends State<LoginPage> {
                         hintText: "Email",
                         obsecureText: false,
                         suffixIcon: const SizedBox(),
-                        controller: _emailController,
+                        controller: emailController,
                         maxLines: 1,
                         textInputAction: TextInputAction.next,
                         textInputType: TextInputType.emailAddress,
                       ),
                       const SizedBox(height: 16),
-                      CustomFormField(
-                        headingText: "Password",
-                        maxLines: 1,
-                        textInputAction: TextInputAction.done,
-                        textInputType: TextInputType.text,
-                        hintText: "At least 8 Characters",
-                        obsecureText: _obscureText,
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _obscureText
-                                ? Icons.visibility
-                                : Icons.visibility_off,
-                            color: AppColors.blue,
-                          ),
-                          onPressed: () {
-                            setState(() => _obscureText = !_obscureText);
-                          },
-                        ),
-                        controller: _passwordController,
-                      ),
+                      Obx(() => CustomFormField(
+                            headingText: "Password",
+                            maxLines: 1,
+                            textInputAction: TextInputAction.done,
+                            textInputType: TextInputType.text,
+                            hintText: "At least 8 Characters",
+                            obsecureText: obscureText.value,
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                obscureText.value
+                                    ? Icons.visibility
+                                    : Icons.visibility_off,
+                                color: AppColors.blue,
+                              ),
+                              onPressed: () {
+                                obscureText.value = !obscureText.value;
+                              },
+                            ),
+                            controller: passwordController,
+                          )),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
@@ -208,19 +117,21 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ],
                       ),
-                      AuthButton(
-                        onTap: _isLoading ? () {} : _login,
-                        text: _isLoading ? 'Signing In...' : 'Sign In',
-                      ),
+                      Obx(() => AuthButton(
+                            onTap: authController.isLoading.value
+                                ? () {}
+                                : () async {
+                                    await authController.login();
+                                  },
+                            text: authController.isLoading.value
+                                ? 'Signing In...'
+                                : 'Sign In',
+                          )),
                       const SizedBox(height: 20),
                       Center(
                         child: TextButton(
                           onPressed: () {
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => const SignupPage()),
-                            );
+                            Get.offAll(() => const SignupPage());
                           },
                           child: RichText(
                             text: TextSpan(
@@ -244,7 +155,12 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
             ),
-            if (_isLoading) const Center(child: CircularProgressIndicator()),
+            Obx(() {
+              if (authController.isLoading.value) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              return const SizedBox.shrink();
+            }),
           ],
         ),
       ),

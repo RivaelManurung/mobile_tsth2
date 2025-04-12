@@ -3,60 +3,81 @@ import 'package:get/get.dart';
 import 'package:inventory_tsth2/Model/satuan_model.dart';
 import 'package:inventory_tsth2/core/routes/routes_name.dart';
 import 'package:inventory_tsth2/services/satuan_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class SatuanController extends GetxController {
-  final SatuanService _satuanService;
+  final SatuanService _service;
+
+  // Reactive state variables
   final RxList<Satuan> satuanList = <Satuan>[].obs;
+  final RxList<Satuan> filteredSatuan = <Satuan>[].obs;
   final Rx<Satuan?> selectedSatuan = Rx<Satuan?>(null);
   final RxBool isLoading = false.obs;
   final RxString errorMessage = ''.obs;
+  final RxString searchQuery = ''.obs;
 
+  // Form controllers
   final TextEditingController nameController = TextEditingController();
   final TextEditingController descriptionController = TextEditingController();
   final TextEditingController searchController = TextEditingController();
 
-  SatuanController({SatuanService? satuanService})
-      : _satuanService = satuanService ?? SatuanService(prefs: Get.find<SharedPreferences>());
+  SatuanController({SatuanService? service})
+      : _service = service ?? SatuanService();
 
   @override
   void onInit() {
-    fetchAllSatuan();
     super.onInit();
+    fetchAllSatuan();
+    _setupSearchListener();
+  }
+
+  void _setupSearchListener() {
+    searchController.addListener(() {
+      searchQuery.value = searchController.text;
+    });
+
+    debounce(searchQuery, (_) => filterSatuan(),
+        time: const Duration(milliseconds: 300));
+  }
+
+  @override
+  void onClose() {
+    searchController.dispose();
+    nameController.dispose();
+    descriptionController.dispose();
+    super.onClose();
   }
 
   Future<void> fetchAllSatuan() async {
     try {
+      print('Fetching satuan...'); // Debug log
       isLoading(true);
       errorMessage('');
-      final satuan = await _satuanService.getAllSatuan();
+      final satuan = await _service.getAllSatuan();
       satuanList.assignAll(satuan);
+      filterSatuan();
+      print('Satuan fetched successfully'); // Debug log
     } catch (e) {
+      print('Error fetching satuan: $e'); // Debug log
       errorMessage(e.toString());
-      if (e.toString().contains('No token found')) {
+      if (errorMessage.value.contains('No token found')) {
+        print('Redirecting to login...'); // Debug log
         Get.offAllNamed(RoutesName.login);
-      } else {
-        Get.snackbar('Error', 'Failed to load satuan: $e',
-            snackPosition: SnackPosition.BOTTOM);
       }
     } finally {
       isLoading(false);
     }
   }
 
-  Future<void> fetchSatuanById(int id) async {
+  Future<void> getSatuanById(int id) async {
     try {
       isLoading(true);
       errorMessage('');
-      final satuan = await _satuanService.getSatuanById(id);
+      final satuan = await _service.getSatuanById(id);
       selectedSatuan(satuan);
     } catch (e) {
       errorMessage(e.toString());
-      if (e.toString().contains('No token found')) {
+      if (errorMessage.value.contains('No token found')) {
         Get.offAllNamed(RoutesName.login);
-      } else {
-        Get.snackbar('Error', 'Failed to load satuan details: $e',
-            snackPosition: SnackPosition.BOTTOM);
       }
     } finally {
       isLoading(false);
@@ -67,27 +88,19 @@ class SatuanController extends GetxController {
     try {
       isLoading(true);
       errorMessage('');
-
-      if (nameController.text.isEmpty) {
-        throw Exception('Unit name cannot be empty');
-      }
-
-      final newSatuan = await _satuanService.createSatuan({
-        'name': nameController.text,
-        'description': descriptionController.text.isEmpty ? null : descriptionController.text,
-      });
+      final data = {
+        'name': nameController.text.trim(),
+        'description': descriptionController.text.trim(),
+      };
+      final newSatuan = await _service.createSatuan(data);
       satuanList.add(newSatuan);
+      filterSatuan();
       Get.back();
-      Get.snackbar('Success', 'Satuan created successfully',
+      Get.snackbar('Success', 'Unit created successfully',
           snackPosition: SnackPosition.BOTTOM);
     } catch (e) {
       errorMessage(e.toString());
-      if (e.toString().contains('No token found')) {
-        Get.offAllNamed(RoutesName.login);
-      } else {
-        Get.snackbar('Error', 'Failed to create satuan: $e',
-            snackPosition: SnackPosition.BOTTOM);
-      }
+      Get.snackbar('Error', e.toString(), snackPosition: SnackPosition.BOTTOM);
     } finally {
       isLoading(false);
     }
@@ -97,30 +110,23 @@ class SatuanController extends GetxController {
     try {
       isLoading(true);
       errorMessage('');
-
-      if (nameController.text.isEmpty) {
-        throw Exception('Unit name cannot be empty');
-      }
-
-      final updatedSatuan = await _satuanService.updateSatuan(id, {
-        'name': nameController.text,
-        'description': descriptionController.text.isEmpty ? null : descriptionController.text,
-      });
-      final index = satuanList.indexWhere((satuan) => satuan.id == id);
+      final data = {
+        'name': nameController.text.trim(),
+        'description': descriptionController.text.trim(),
+      };
+      final updatedSatuan = await _service.updateSatuan(id, data);
+      final index = satuanList.indexWhere((item) => item.id == id);
       if (index != -1) {
         satuanList[index] = updatedSatuan;
+        filterSatuan();
       }
+      selectedSatuan(updatedSatuan);
       Get.back();
-      Get.snackbar('Success', 'Satuan updated successfully',
+      Get.snackbar('Success', 'Unit updated successfully',
           snackPosition: SnackPosition.BOTTOM);
     } catch (e) {
       errorMessage(e.toString());
-      if (e.toString().contains('No token found')) {
-        Get.offAllNamed(RoutesName.login);
-      } else {
-        Get.snackbar('Error', 'Failed to update satuan: $e',
-            snackPosition: SnackPosition.BOTTOM);
-      }
+      Get.snackbar('Error', e.toString(), snackPosition: SnackPosition.BOTTOM);
     } finally {
       isLoading(false);
     }
@@ -130,19 +136,17 @@ class SatuanController extends GetxController {
     try {
       isLoading(true);
       errorMessage('');
-      await _satuanService.deleteSatuan(id);
-      satuanList.removeWhere((satuan) => satuan.id == id);
-      Get.back();
-      Get.snackbar('Success', 'Satuan deleted successfully',
-          snackPosition: SnackPosition.BOTTOM);
-    } catch (e) {
-      errorMessage(e.toString());
-      if (e.toString().contains('No token found')) {
-        Get.offAllNamed(RoutesName.login);
-      } else {
-        Get.snackbar('Error', 'Failed to delete satuan: $e',
+      final success = await _service.deleteSatuan(id);
+      if (success) {
+        satuanList.removeWhere((item) => item.id == id);
+        filterSatuan();
+        Get.back();
+        Get.snackbar('Success', 'Unit deleted successfully',
             snackPosition: SnackPosition.BOTTOM);
       }
+    } catch (e) {
+      errorMessage(e.toString());
+      Get.snackbar('Error', e.toString(), snackPosition: SnackPosition.BOTTOM);
     } finally {
       isLoading(false);
     }
@@ -152,38 +156,62 @@ class SatuanController extends GetxController {
     try {
       isLoading(true);
       errorMessage('');
-      final restoredSatuan = await _satuanService.restoreSatuan(id);
-      satuanList.add(restoredSatuan);
-      Get.snackbar('Success', 'Satuan restored successfully',
+      final restoredSatuan = await _service.restoreSatuan(id);
+      final index = satuanList.indexWhere((item) => item.id == id);
+      if (index != -1) {
+        satuanList[index] = restoredSatuan;
+        filterSatuan();
+      }
+      selectedSatuan(restoredSatuan);
+      Get.snackbar('Success', 'Unit restored successfully',
           snackPosition: SnackPosition.BOTTOM);
     } catch (e) {
       errorMessage(e.toString());
-      if (e.toString().contains('No token found')) {
-        Get.offAllNamed(RoutesName.login);
-      } else {
-        Get.snackbar('Error', 'Failed to restore satuan: $e',
-            snackPosition: SnackPosition.BOTTOM);
-      }
+      Get.snackbar('Error', e.toString(), snackPosition: SnackPosition.BOTTOM);
     } finally {
       isLoading(false);
+    }
+  }
+
+  Future<void> forceDeleteSatuan(int id) async {
+    try {
+      isLoading(true);
+      errorMessage('');
+      final success = await _service.forceDeleteSatuan(id);
+      if (success) {
+        satuanList.removeWhere((item) => item.id == id);
+        filterSatuan();
+        Get.back();
+        Get.snackbar('Success', 'Unit permanently deleted',
+            snackPosition: SnackPosition.BOTTOM);
+      }
+    } catch (e) {
+      errorMessage(e.toString());
+      Get.snackbar('Error', e.toString(), snackPosition: SnackPosition.BOTTOM);
+    } finally {
+      isLoading(false);
+    }
+  }
+
+  void filterSatuan() {
+    final query = searchQuery.value.toLowerCase();
+    if (query.isEmpty) {
+      filteredSatuan.assignAll(satuanList);
+    } else {
+      filteredSatuan.assignAll(
+        satuanList.where((item) =>
+            item.name.toLowerCase().contains(query) ||
+            (item.description?.toLowerCase().contains(query) ?? false)),
+      );
     }
   }
 
   void clearForm() {
     nameController.clear();
     descriptionController.clear();
+    searchController.clear();
+    searchQuery.value = '';
+    errorMessage('');
     selectedSatuan(null);
-  }
-
-  List<Satuan> get filteredSatuan {
-    if (searchController.text.isEmpty) {
-      return satuanList;
-    } else {
-      return satuanList.where((satuan) {
-        return satuan.name
-            .toLowerCase()
-            .contains(searchController.text.toLowerCase());
-      }).toList();
-    }
   }
 }

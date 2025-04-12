@@ -1,25 +1,35 @@
+// lib/services/user_services.dart
 import 'dart:io';
 import 'package:dio/dio.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:inventory_tsth2/Model/user_model.dart';
+import 'package:inventory_tsth2/services/auth_service.dart';
 import 'package:path/path.dart' as path;
 
 class UserService {
   final Dio _dio;
-  final SharedPreferences _prefs;
+  late final FlutterSecureStorage _storage;
+  final AuthService _authService;
 
-  UserService({Dio? dio, SharedPreferences? prefs})
-      : _dio = dio ??
+  UserService({
+    Dio? dio,
+    FlutterSecureStorage? storage,
+    AuthService? authService,
+  })  : _dio = dio ??
             Dio(BaseOptions(
               baseUrl: 'http://127.0.0.1:8000/api',
               headers: {'Accept': 'application/json'},
             )),
-        _prefs = prefs ?? (throw Exception('SharedPreferences not initialized'));
+        _authService = authService ?? AuthService() {
+    _storage = storage ?? const FlutterSecureStorage();
+  }
 
   String get baseUrl => _dio.options.baseUrl.replaceFirst('/api', '');
 
   Future<String?> _getToken() async {
-    return _prefs.getString('auth_token');
+    final token = await _authService.getToken();
+    print('Token retrieved in UserService: $token'); // Debug log
+    return token; // Langsung kembalikan token, tanpa verifikasi
   }
 
   Future<User> getCurrentUser() async {
@@ -67,10 +77,10 @@ class UserService {
         ),
       );
 
-      if (response.statusCode == 200 && response.data['message'] == 'Profil berhasil diperbarui') {
+      if (response.statusCode == 200) {
         return User.fromJson(response.data['data']);
       } else {
-        throw Exception(response.data['error'] ?? 'Failed to update user');
+        throw Exception(response.data['message'] ?? 'Failed to update user');
       }
     } on DioException catch (e) {
       throw _handleError(e);
@@ -90,7 +100,7 @@ class UserService {
         data: {
           'current_password': currentPassword,
           'new_password': newPassword,
-          'new_password_confirmation': newPassword, // Backend expects confirmation
+          'new_password_confirmation': newPassword,
         },
         options: Options(
           headers: {
@@ -99,8 +109,8 @@ class UserService {
           },
         ),
       );
-      if (response.statusCode != 200 || response.data['message'] != 'Password berhasil diperbarui') {
-        throw Exception(response.data['error'] ?? 'Failed to change password');
+      if (response.statusCode != 200) {
+        throw Exception(response.data['message'] ?? 'Failed to change password');
       }
     } on DioException catch (e) {
       throw _handleError(e);
@@ -109,7 +119,10 @@ class UserService {
 
   Future<void> logout() async {
     final token = await _getToken();
-    if (token == null) return;
+    if (token == null) {
+      await _authService.logout();
+      return;
+    }
 
     try {
       await _dio.post(
@@ -119,18 +132,21 @@ class UserService {
     } on DioException catch (e) {
       throw _handleError(e);
     } finally {
-      await _prefs.remove('auth_token');
-      await _prefs.remove('user');
+      await _authService.logout();
     }
   }
 
   String _handleError(DioException e) {
+    if (e.response?.statusCode == 401) {
+      // Jika token tidak valid (401 Unauthorized), anggap ini sama dengan "No token found"
+      return 'No token found';
+    }
     if (e.response?.data != null) {
-      if (e.response?.data['error'] != null) {
-        return e.response!.data['error'];
-      }
       if (e.response?.data['message'] != null) {
         return e.response!.data['message'];
+      }
+      if (e.response?.data['error'] != null) {
+        return e.response!.data['error'];
       }
     }
     return e.message ?? 'An error occurred';

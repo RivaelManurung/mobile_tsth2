@@ -1,13 +1,13 @@
+// lib/controller/Profile/profile_controller.dart
 import 'package:flutter/material.dart';
 import 'package:inventory_tsth2/Model/user_model.dart';
 import 'package:inventory_tsth2/services/user_services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfileController {
   final UserService _userService;
 
   ProfileController({UserService? userService})
-      : _userService = userService ?? UserService(prefs: SharedPreferences.getInstance() as SharedPreferences?);
+      : _userService = userService ?? UserService();
 
   Future<User> getCurrentUser() async {
     return await _userService.getCurrentUser();
@@ -27,14 +27,8 @@ class ProfileController {
     );
   }
 
-  Future<void> logout(BuildContext context) async {
+  Future<void> logout() async {
     await _userService.logout();
-    if (context.mounted) {
-      Navigator.of(context).pushNamedAndRemoveUntil(
-        '/login',
-        (route) => false,
-      );
-    }
   }
 
   String getInitials(String name) {

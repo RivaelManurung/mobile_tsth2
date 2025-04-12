@@ -3,60 +3,76 @@ import 'package:get/get.dart';
 import 'package:inventory_tsth2/Model/jenis_barang_model.dart';
 import 'package:inventory_tsth2/core/routes/routes_name.dart';
 import 'package:inventory_tsth2/services/jenis_barang_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class JenisBarangController extends GetxController {
-  final JenisBarangService _jenisBarangService;
+  final JenisBarangService _service;
+
+  // Reactive state variables
   final RxList<JenisBarang> jenisBarangList = <JenisBarang>[].obs;
+  final RxList<JenisBarang> filteredJenisBarang = <JenisBarang>[].obs;
   final Rx<JenisBarang?> selectedJenisBarang = Rx<JenisBarang?>(null);
   final RxBool isLoading = false.obs;
   final RxString errorMessage = ''.obs;
+  final RxString searchQuery = ''.obs;
 
+  // Form controllers
   final TextEditingController nameController = TextEditingController();
   final TextEditingController descriptionController = TextEditingController();
   final TextEditingController searchController = TextEditingController();
 
-  JenisBarangController({JenisBarangService? jenisBarangService})
-      : _jenisBarangService = jenisBarangService ?? JenisBarangService(prefs: Get.find<SharedPreferences>());
+  JenisBarangController({JenisBarangService? service})
+      : _service = service ?? JenisBarangService();
 
   @override
   void onInit() {
-    fetchAllJenisBarang();
     super.onInit();
+    fetchAllJenisBarang();
+
+    // Listen to changes in the searchController and update searchQuery
+    searchController.addListener(() {
+      searchQuery.value = searchController.text;
+    });
+
+    // Use debounce on the reactive searchQuery
+    debounce(searchQuery, (_) => filterJenisBarang(),
+        time: const Duration(milliseconds: 300));
+  }
+
+  @override
+  void onClose() {
+    searchController.dispose();
+    nameController.dispose();
+    descriptionController.dispose();
+    super.onClose();
   }
 
   Future<void> fetchAllJenisBarang() async {
     try {
       isLoading(true);
       errorMessage('');
-      final jenisBarang = await _jenisBarangService.getAllJenisBarang();
+      final jenisBarang = await _service.getAllJenisBarang();
       jenisBarangList.assignAll(jenisBarang);
+      filterJenisBarang();
     } catch (e) {
       errorMessage(e.toString());
-      if (e.toString().contains('No token found')) {
+      if (errorMessage.value.contains('No token found')) {
         Get.offAllNamed(RoutesName.login);
-      } else {
-        Get.snackbar('Error', 'Failed to load jenis barang: $e',
-            snackPosition: SnackPosition.BOTTOM);
       }
     } finally {
       isLoading(false);
     }
   }
 
-  Future<void> fetchJenisBarangById(int id) async {
+  Future<void> getJenisBarangById(int id) async {
     try {
       isLoading(true);
       errorMessage('');
-      final jenisBarang = await _jenisBarangService.getJenisBarangById(id);
+      final jenisBarang = await _service.getJenisBarangById(id);
       selectedJenisBarang(jenisBarang);
     } catch (e) {
       errorMessage(e.toString());
-      if (e.toString().contains('No token found')) {
+      if (errorMessage.value.contains('No token found')) {
         Get.offAllNamed(RoutesName.login);
-      } else {
-        Get.snackbar('Error', 'Failed to load jenis barang details: $e',
-            snackPosition: SnackPosition.BOTTOM);
       }
     } finally {
       isLoading(false);
@@ -67,27 +83,19 @@ class JenisBarangController extends GetxController {
     try {
       isLoading(true);
       errorMessage('');
-
-      if (nameController.text.isEmpty) {
-        throw Exception('Item type name cannot be empty');
-      }
-
-      final newJenisBarang = await _jenisBarangService.createJenisBarang({
-        'name': nameController.text,
-        'description': descriptionController.text.isEmpty ? null : descriptionController.text,
-      });
+      final data = {
+        'name': nameController.text.trim(),
+        'description': descriptionController.text.trim(),
+      };
+      final newJenisBarang = await _service.createJenisBarang(data);
       jenisBarangList.add(newJenisBarang);
+      filterJenisBarang();
       Get.back();
-      Get.snackbar('Success', 'Jenis barang created successfully',
+      Get.snackbar('Success', 'Item type created successfully',
           snackPosition: SnackPosition.BOTTOM);
     } catch (e) {
       errorMessage(e.toString());
-      if (e.toString().contains('No token found')) {
-        Get.offAllNamed(RoutesName.login);
-      } else {
-        Get.snackbar('Error', 'Failed to create jenis barang: $e',
-            snackPosition: SnackPosition.BOTTOM);
-      }
+      Get.snackbar('Error', e.toString(), snackPosition: SnackPosition.BOTTOM);
     } finally {
       isLoading(false);
     }
@@ -97,30 +105,23 @@ class JenisBarangController extends GetxController {
     try {
       isLoading(true);
       errorMessage('');
-
-      if (nameController.text.isEmpty) {
-        throw Exception('Item type name cannot be empty');
-      }
-
-      final updatedJenisBarang = await _jenisBarangService.updateJenisBarang(id, {
-        'name': nameController.text,
-        'description': descriptionController.text.isEmpty ? null : descriptionController.text,
-      });
-      final index = jenisBarangList.indexWhere((jenisBarang) => jenisBarang.id == id);
+      final data = {
+        'name': nameController.text.trim(),
+        'description': descriptionController.text.trim(),
+      };
+      final updatedJenisBarang = await _service.updateJenisBarang(id, data);
+      final index = jenisBarangList.indexWhere((item) => item.id == id);
       if (index != -1) {
         jenisBarangList[index] = updatedJenisBarang;
+        filterJenisBarang();
       }
+      selectedJenisBarang(updatedJenisBarang);
       Get.back();
-      Get.snackbar('Success', 'Jenis barang updated successfully',
+      Get.snackbar('Success', 'Item type updated successfully',
           snackPosition: SnackPosition.BOTTOM);
     } catch (e) {
       errorMessage(e.toString());
-      if (e.toString().contains('No token found')) {
-        Get.offAllNamed(RoutesName.login);
-      } else {
-        Get.snackbar('Error', 'Failed to update jenis barang: $e',
-            snackPosition: SnackPosition.BOTTOM);
-      }
+      Get.snackbar('Error', e.toString(), snackPosition: SnackPosition.BOTTOM);
     } finally {
       isLoading(false);
     }
@@ -130,19 +131,17 @@ class JenisBarangController extends GetxController {
     try {
       isLoading(true);
       errorMessage('');
-      await _jenisBarangService.deleteJenisBarang(id);
-      jenisBarangList.removeWhere((jenisBarang) => jenisBarang.id == id);
-      Get.back();
-      Get.snackbar('Success', 'Jenis barang deleted successfully',
-          snackPosition: SnackPosition.BOTTOM);
-    } catch (e) {
-      errorMessage(e.toString());
-      if (e.toString().contains('No token found')) {
-        Get.offAllNamed(RoutesName.login);
-      } else {
-        Get.snackbar('Error', 'Failed to delete jenis barang: $e',
+      final success = await _service.deleteJenisBarang(id);
+      if (success) {
+        jenisBarangList.removeWhere((item) => item.id == id);
+        filterJenisBarang();
+        Get.back();
+        Get.snackbar('Success', 'Item type deleted successfully',
             snackPosition: SnackPosition.BOTTOM);
       }
+    } catch (e) {
+      errorMessage(e.toString());
+      Get.snackbar('Error', e.toString(), snackPosition: SnackPosition.BOTTOM);
     } finally {
       isLoading(false);
     }
@@ -152,18 +151,18 @@ class JenisBarangController extends GetxController {
     try {
       isLoading(true);
       errorMessage('');
-      final restoredJenisBarang = await _jenisBarangService.restoreJenisBarang(id);
-      jenisBarangList.add(restoredJenisBarang);
-      Get.snackbar('Success', 'Jenis barang restored successfully',
+      final restoredJenisBarang = await _service.restoreJenisBarang(id);
+      final index = jenisBarangList.indexWhere((item) => item.id == id);
+      if (index != -1) {
+        jenisBarangList[index] = restoredJenisBarang;
+        filterJenisBarang();
+      }
+      selectedJenisBarang(restoredJenisBarang);
+      Get.snackbar('Success', 'Item type restored successfully',
           snackPosition: SnackPosition.BOTTOM);
     } catch (e) {
       errorMessage(e.toString());
-      if (e.toString().contains('No token found')) {
-        Get.offAllNamed(RoutesName.login);
-      } else {
-        Get.snackbar('Error', 'Failed to restore jenis barang: $e',
-            snackPosition: SnackPosition.BOTTOM);
-      }
+      Get.snackbar('Error', e.toString(), snackPosition: SnackPosition.BOTTOM);
     } finally {
       isLoading(false);
     }
@@ -173,38 +172,41 @@ class JenisBarangController extends GetxController {
     try {
       isLoading(true);
       errorMessage('');
-      await _jenisBarangService.forceDeleteJenisBarang(id);
-      jenisBarangList.removeWhere((jenisBarang) => jenisBarang.id == id);
-      Get.snackbar('Success', 'Jenis barang permanently deleted',
-          snackPosition: SnackPosition.BOTTOM);
-    } catch (e) {
-      errorMessage(e.toString());
-      if (e.toString().contains('No token found')) {
-        Get.offAllNamed(RoutesName.login);
-      } else {
-        Get.snackbar('Error', 'Failed to force delete jenis barang: $e',
+      final success = await _service.forceDeleteJenisBarang(id);
+      if (success) {
+        jenisBarangList.removeWhere((item) => item.id == id);
+        filterJenisBarang();
+        Get.back();
+        Get.snackbar('Success', 'Item type permanently deleted',
             snackPosition: SnackPosition.BOTTOM);
       }
+    } catch (e) {
+      errorMessage(e.toString());
+      Get.snackbar('Error', e.toString(), snackPosition: SnackPosition.BOTTOM);
     } finally {
       isLoading(false);
+    }
+  }
+
+  void filterJenisBarang() {
+    final query = searchQuery.value.toLowerCase();
+    if (query.isEmpty) {
+      filteredJenisBarang.assignAll(jenisBarangList);
+    } else {
+      filteredJenisBarang.assignAll(
+        jenisBarangList.where((item) =>
+            item.name.toLowerCase().contains(query) ||
+            (item.description?.toLowerCase().contains(query) ?? false)),
+      );
     }
   }
 
   void clearForm() {
     nameController.clear();
     descriptionController.clear();
+    searchController.clear();
+    searchQuery.value = '';
+    errorMessage('');
     selectedJenisBarang(null);
-  }
-
-  List<JenisBarang> get filteredJenisBarang {
-    if (searchController.text.isEmpty) {
-      return jenisBarangList;
-    } else {
-      return jenisBarangList.where((jenisBarang) {
-        return jenisBarang.name
-            .toLowerCase()
-            .contains(searchController.text.toLowerCase());
-      }).toList();
-    }
   }
 }

@@ -1,10 +1,10 @@
+// lib/screens/edit_profile_page.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:inventory_tsth2/Model/user_model.dart';
 import 'package:inventory_tsth2/controller/Profile/edit_profile_controler.dart';
 import 'package:inventory_tsth2/services/user_services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class EditProfilePage extends StatefulWidget {
   final User user;
@@ -29,12 +29,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   Future<void> _initializeController() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
       setState(() {
-        _controller = EditProfileController(
-          user: widget.user,
-          userService: UserService(prefs: prefs),
-        );
+        _controller = EditProfileController(user: widget.user);
         _isLoading = false;
       });
     } catch (e) {
@@ -165,7 +161,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   child: Column(
                     children: [
-                      // Profile Photo Section
                       Stack(
                         alignment: Alignment.bottomRight,
                         children: [
@@ -226,7 +221,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         ],
                       ),
                       const SizedBox(height: 30),
-                      // Form Section
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(

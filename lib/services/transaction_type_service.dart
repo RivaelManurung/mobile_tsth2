@@ -1,21 +1,38 @@
 import 'package:dio/dio.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:inventory_tsth2/Model/transaction_type_model.dart';
+import 'package:inventory_tsth2/services/auth_service.dart';
 
 class TransactionTypeService {
   final Dio _dio;
-  final SharedPreferences _prefs;
+  late final FlutterSecureStorage _storage;
+  final AuthService _authService;
 
-  TransactionTypeService({Dio? dio, SharedPreferences? prefs})
-      : _dio = dio ??
+  TransactionTypeService({
+    Dio? dio,
+    FlutterSecureStorage? storage,
+    AuthService? authService,
+  })  : _dio = dio ??
             Dio(BaseOptions(
               baseUrl: 'http://127.0.0.1:8000/api',
               headers: {'Accept': 'application/json'},
             )),
-        _prefs = prefs ?? (throw Exception('SharedPreferences not initialized'));
+        _authService = authService ?? AuthService() {
+    _storage = storage ?? const FlutterSecureStorage();
+  }
 
   Future<String?> _getToken() async {
-    return _prefs.getString('auth_token');
+    final token = await _authService.getToken();
+    print('Token retrieved: $token');
+    if (token == null) return null;
+
+    final isValid = await _authService.verifyToken(token);
+    print('Token valid: $isValid');
+    if (!isValid) {
+      await _authService.logout();
+      return null;
+    }
+    return token;
   }
 
   Future<List<TransactionType>> getAllTransactionType() async {
@@ -25,16 +42,24 @@ class TransactionTypeService {
     try {
       final response = await _dio.get(
         '/transaction-types',
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Cache-Control': 'no-cache',
+          },
+        ),
       );
 
+      print('getAllTransactionType response: ${response.data}');
+
       if (response.statusCode == 200) {
-        List<dynamic> data = response.data['data'];
+        List<dynamic> data = response.data['data'] ?? [];
         return data.map((json) => TransactionType.fromJson(json)).toList();
       } else {
         throw Exception(response.data['message'] ?? 'Failed to load transaction types');
       }
     } on DioException catch (e) {
+      print('DioException in getAllTransactionType: ${e.response?.data}');
       throw _handleError(e);
     }
   }
@@ -125,6 +150,46 @@ class TransactionTypeService {
         return true;
       } else {
         throw Exception(response.data['message'] ?? 'Failed to delete transaction type');
+      }
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  Future<TransactionType> restoreTransactionType(int id) async {
+    final token = await _getToken();
+    if (token == null) throw Exception('No token found');
+
+    try {
+      final response = await _dio.put(
+        '/transaction-types/$id/restore',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.statusCode == 200) {
+        return TransactionType.fromJson(response.data['data']);
+      } else {
+        throw Exception(response.data['message'] ?? 'Failed to restore transaction type');
+      }
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  Future<bool> forceDeleteTransactionType(int id) async {
+    final token = await _getToken();
+    if (token == null) throw Exception('No token found');
+
+    try {
+      final response = await _dio.delete(
+        '/transaction-types/$id/force',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.statusCode == 200) {
+        return true;
+      } else {
+        throw Exception(response.data['message'] ?? 'Failed to force delete transaction type');
       }
     } on DioException catch (e) {
       throw _handleError(e);

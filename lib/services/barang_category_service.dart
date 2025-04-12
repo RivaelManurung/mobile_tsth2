@@ -1,21 +1,38 @@
 import 'package:dio/dio.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:inventory_tsth2/Model/barang_category_model.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:inventory_tsth2/services/auth_service.dart';
 
 class BarangCategoryService {
   final Dio _dio;
-  final SharedPreferences _prefs;
+  late final FlutterSecureStorage _storage;
+  final AuthService _authService;
 
-  BarangCategoryService({Dio? dio, SharedPreferences? prefs})
-      : _dio = dio ??
+  BarangCategoryService({
+    Dio? dio,
+    FlutterSecureStorage? storage,
+    AuthService? authService,
+  })  : _dio = dio ??
             Dio(BaseOptions(
               baseUrl: 'http://127.0.0.1:8000/api',
               headers: {'Accept': 'application/json'},
             )),
-        _prefs = prefs ?? (throw Exception('SharedPreferences not initialized'));
+        _authService = authService ?? AuthService() {
+    _storage = storage ?? const FlutterSecureStorage();
+  }
 
   Future<String?> _getToken() async {
-    return _prefs.getString('auth_token');
+    final token = await _authService.getToken();
+    print('Token retrieved: $token');
+    if (token == null) return null;
+
+    final isValid = await _authService.verifyToken(token);
+    print('Token valid: $isValid');
+    if (!isValid) {
+      await _authService.logout();
+      return null;
+    }
+    return token;
   }
 
   Future<List<BarangCategory>> getAllBarangCategory() async {
@@ -25,16 +42,25 @@ class BarangCategoryService {
     try {
       final response = await _dio.get(
         '/barang-categories',
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Cache-Control': 'no-cache',
+          },
+        ),
       );
 
+      print('getAllBarangCategory response: ${response.data}');
+
       if (response.statusCode == 200) {
-        List<dynamic> data = response.data['data'];
+        List<dynamic> data = response.data['data'] ?? [];
         return data.map((json) => BarangCategory.fromJson(json)).toList();
       } else {
-        throw Exception(response.data['message'] ?? 'Failed to load barang categories');
+        throw Exception(
+            response.data['message'] ?? 'Failed to load barang categories');
       }
     } on DioException catch (e) {
+      print('DioException in getAllBarangCategory: ${e.response?.data}');
       throw _handleError(e);
     }
   }
@@ -52,7 +78,8 @@ class BarangCategoryService {
       if (response.statusCode == 200) {
         return BarangCategory.fromJson(response.data['data']);
       } else {
-        throw Exception(response.data['message'] ?? 'Failed to load barang category details');
+        throw Exception(response.data['message'] ??
+            'Failed to load barang category details');
       }
     } on DioException catch (e) {
       throw _handleError(e);
@@ -78,14 +105,16 @@ class BarangCategoryService {
       if (response.statusCode == 201) {
         return BarangCategory.fromJson(response.data['data']);
       } else {
-        throw Exception(response.data['message'] ?? 'Failed to create barang category');
+        throw Exception(
+            response.data['message'] ?? 'Failed to create barang category');
       }
     } on DioException catch (e) {
       throw _handleError(e);
     }
   }
 
-  Future<BarangCategory> updateBarangCategory(int id, Map<String, dynamic> data) async {
+  Future<BarangCategory> updateBarangCategory(
+      int id, Map<String, dynamic> data) async {
     final token = await _getToken();
     if (token == null) throw Exception('No token found');
 
@@ -104,7 +133,8 @@ class BarangCategoryService {
       if (response.statusCode == 200) {
         return BarangCategory.fromJson(response.data['data']);
       } else {
-        throw Exception(response.data['message'] ?? 'Failed to update barang category');
+        throw Exception(
+            response.data['message'] ?? 'Failed to update barang category');
       }
     } on DioException catch (e) {
       throw _handleError(e);
@@ -124,7 +154,50 @@ class BarangCategoryService {
       if (response.statusCode == 200) {
         return true;
       } else {
-        throw Exception(response.data['message'] ?? 'Failed to delete barang category');
+        throw Exception(
+            response.data['message'] ?? 'Failed to delete barang category');
+      }
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  Future<BarangCategory> restoreBarangCategory(int id) async {
+    final token = await _getToken();
+    if (token == null) throw Exception('No token found');
+
+    try {
+      final response = await _dio.put(
+        '/barang-categories/$id/restore',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.statusCode == 200) {
+        return BarangCategory.fromJson(response.data['data']);
+      } else {
+        throw Exception(
+            response.data['message'] ?? 'Failed to restore barang category');
+      }
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  Future<bool> forceDeleteBarangCategory(int id) async {
+    final token = await _getToken();
+    if (token == null) throw Exception('No token found');
+
+    try {
+      final response = await _dio.delete(
+        '/barang-categories/$id/force',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.statusCode == 200) {
+        return true;
+      } else {
+        throw Exception(
+            response.data['message'] ?? 'Failed to force delete barang category');
       }
     } on DioException catch (e) {
       throw _handleError(e);

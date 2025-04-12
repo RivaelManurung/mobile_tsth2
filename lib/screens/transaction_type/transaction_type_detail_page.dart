@@ -11,7 +11,7 @@ class TransactionTypeDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final int id = Get.arguments as int;
-    _controller.fetchTransactionTypeById(id);
+    _controller.getTransactionTypeById(id);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFF),

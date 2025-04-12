@@ -11,7 +11,7 @@ class JenisBarangDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final int id = Get.arguments as int;
-    _controller.fetchJenisBarangById(id);
+    _controller.getJenisBarangById(id); // Fix: Call the correct method
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFF),
@@ -80,7 +80,7 @@ class JenisBarangDetailPage extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                'Slug: ${jenisBarang.slug}',
+                'Created At: ${jenisBarang.createdAt?.toString() ?? 'N/A'}',
                 style: const TextStyle(
                   fontSize: 16,
                   color: Color(0xFF6F767E),
@@ -88,7 +88,7 @@ class JenisBarangDetailPage extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                'Created by User ID: ${jenisBarang.userId}',
+                'Updated At: ${jenisBarang.updatedAt?.toString() ?? 'N/A'}',
                 style: const TextStyle(
                   fontSize: 16,
                   color: Color(0xFF6F767E),
@@ -104,6 +104,7 @@ class JenisBarangDetailPage extends StatelessWidget {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                     ),
                     onPressed: () {
                       _controller.nameController.text = jenisBarang.name;
@@ -118,6 +119,7 @@ class JenisBarangDetailPage extends StatelessWidget {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                     ),
                     onPressed: () {
                       Get.defaultDialog(
@@ -127,19 +129,20 @@ class JenisBarangDetailPage extends StatelessWidget {
                         textCancel: 'No',
                         confirmTextColor: Colors.white,
                         onConfirm: () {
+                          Get.back(); // Close the dialog
                           _controller.deleteJenisBarang(jenisBarang.id);
                         },
                       );
                     },
                     child: const Text('Delete'),
                   ),
-                  // Optional: Add buttons for restore and force delete
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                     ),
                     onPressed: () {
                       Get.defaultDialog(
@@ -149,6 +152,7 @@ class JenisBarangDetailPage extends StatelessWidget {
                         textCancel: 'No',
                         confirmTextColor: Colors.white,
                         onConfirm: () {
+                          Get.back(); // Close the dialog
                           _controller.restoreJenisBarang(jenisBarang.id);
                         },
                       );
@@ -161,6 +165,7 @@ class JenisBarangDetailPage extends StatelessWidget {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                     ),
                     onPressed: () {
                       Get.defaultDialog(
@@ -170,6 +175,7 @@ class JenisBarangDetailPage extends StatelessWidget {
                         textCancel: 'No',
                         confirmTextColor: Colors.white,
                         onConfirm: () {
+                          Get.back(); // Close the dialog
                           _controller.forceDeleteJenisBarang(jenisBarang.id);
                         },
                       );
@@ -178,6 +184,7 @@ class JenisBarangDetailPage extends StatelessWidget {
                   ),
                 ],
               ),
+              const SizedBox(height: 16),
             ],
           ),
         );

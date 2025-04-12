@@ -1,21 +1,39 @@
 import 'package:dio/dio.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:inventory_tsth2/Model/satuan_model.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:inventory_tsth2/services/auth_service.dart';
 
 class SatuanService {
   final Dio _dio;
-  final SharedPreferences _prefs;
+  late final FlutterSecureStorage _storage;
+  final AuthService _authService;
 
-  SatuanService({Dio? dio, SharedPreferences? prefs})
-      : _dio = dio ??
+  SatuanService({
+    Dio? dio,
+    FlutterSecureStorage? storage,
+    AuthService? authService,
+  })  : _dio = dio ??
             Dio(BaseOptions(
               baseUrl: 'http://127.0.0.1:8000/api',
               headers: {'Accept': 'application/json'},
             )),
-        _prefs = prefs ?? (throw Exception('SharedPreferences not initialized'));
+        _authService = authService ?? AuthService() {
+    _storage = storage ?? const FlutterSecureStorage();
+  }
 
   Future<String?> _getToken() async {
-    return _prefs.getString('auth_token');
+    final token = await _authService.getToken();
+    print('Token retrieved: $token'); // Debug log
+    if (token == null) return null;
+
+    // Verify the token before using it
+    final isValid = await _authService.verifyToken(token);
+    print('Token valid: $isValid'); // Debug log
+    if (!isValid) {
+      await _authService.logout(); // Clear invalid token
+      return null;
+    }
+    return token;
   }
 
   Future<List<Satuan>> getAllSatuan() async {
@@ -25,16 +43,24 @@ class SatuanService {
     try {
       final response = await _dio.get(
         '/satuans',
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Cache-Control': 'no-cache',
+          },
+        ),
       );
 
+      print('getAllSatuan response: ${response.data}'); // Debug log
+
       if (response.statusCode == 200) {
-        List<dynamic> data = response.data['data']['data']; // Adjust for pagination
+        List<dynamic> data = response.data['data'] ?? [];
         return data.map((json) => Satuan.fromJson(json)).toList();
       } else {
-        throw Exception(response.data['message'] ?? 'Failed to load satuan');
+        throw Exception(response.data['message'] ?? 'Failed to load units');
       }
     } on DioException catch (e) {
+      print('DioException in getAllSatuan: ${e.response?.data}'); // Debug log
       throw _handleError(e);
     }
   }
@@ -52,7 +78,8 @@ class SatuanService {
       if (response.statusCode == 200) {
         return Satuan.fromJson(response.data['data']);
       } else {
-        throw Exception(response.data['message'] ?? 'Failed to load satuan details');
+        throw Exception(
+            response.data['message'] ?? 'Failed to load unit details');
       }
     } on DioException catch (e) {
       throw _handleError(e);
@@ -78,7 +105,7 @@ class SatuanService {
       if (response.statusCode == 201) {
         return Satuan.fromJson(response.data['data']);
       } else {
-        throw Exception(response.data['message'] ?? 'Failed to create satuan');
+        throw Exception(response.data['message'] ?? 'Failed to create unit');
       }
     } on DioException catch (e) {
       throw _handleError(e);
@@ -104,7 +131,7 @@ class SatuanService {
       if (response.statusCode == 200) {
         return Satuan.fromJson(response.data['data']);
       } else {
-        throw Exception(response.data['message'] ?? 'Failed to update satuan');
+        throw Exception(response.data['message'] ?? 'Failed to update unit');
       }
     } on DioException catch (e) {
       throw _handleError(e);
@@ -124,7 +151,7 @@ class SatuanService {
       if (response.statusCode == 200) {
         return true;
       } else {
-        throw Exception(response.data['message'] ?? 'Failed to delete satuan');
+        throw Exception(response.data['message'] ?? 'Failed to delete unit');
       }
     } on DioException catch (e) {
       throw _handleError(e);
@@ -144,7 +171,28 @@ class SatuanService {
       if (response.statusCode == 200) {
         return Satuan.fromJson(response.data['data']);
       } else {
-        throw Exception(response.data['message'] ?? 'Failed to restore satuan');
+        throw Exception(response.data['message'] ?? 'Failed to restore unit');
+      }
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  Future<bool> forceDeleteSatuan(int id) async {
+    final token = await _getToken();
+    if (token == null) throw Exception('No token found');
+
+    try {
+      final response = await _dio.delete(
+        '/satuans/$id/force',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.statusCode == 200) {
+        return true;
+      } else {
+        throw Exception(
+            response.data['message'] ?? 'Failed to force delete unit');
       }
     } on DioException catch (e) {
       throw _handleError(e);

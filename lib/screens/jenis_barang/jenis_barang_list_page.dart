@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
+import 'package:inventory_tsth2/controller/Auth/auth_controller.dart';
 import 'package:inventory_tsth2/controller/JenisBarang/jenisbarang_controller.dart';
 import 'package:inventory_tsth2/core/routes/routes_name.dart';
 import 'package:inventory_tsth2/screens/jenis_barang/jenis_barang_detail_page.dart';
@@ -8,10 +9,11 @@ import 'package:inventory_tsth2/screens/jenis_barang/jenis_barang_form_page.dart
 import 'package:pull_to_refresh_flutter3/pull_to_refresh_flutter3.dart';
 
 class JenisBarangListPage extends StatelessWidget {
-  final JenisBarangController _controller = Get.put(JenisBarangController());
-  final RefreshController _refreshController = RefreshController();
-
   JenisBarangListPage({super.key});
+
+  final JenisBarangController _controller = Get.put(JenisBarangController());
+  final AuthController _authController = Get.find<AuthController>();
+  final RefreshController _refreshController = RefreshController();
 
   @override
   Widget build(BuildContext context) {
@@ -72,7 +74,7 @@ class JenisBarangListPage extends StatelessWidget {
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.symmetric(horizontal: 16),
                   ),
-                  onChanged: (value) => _controller.update(),
+                  onChanged: (value) => _controller.filterJenisBarang(),
                 ),
               ),
             ),

@@ -11,7 +11,7 @@ class BarangCategoryDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final int id = Get.arguments as int;
-    _controller.fetchBarangCategoryById(id);
+    _controller.getBarangCategoryById(id);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFF),
@@ -91,7 +91,7 @@ class BarangCategoryDetailPage extends StatelessWidget {
                     ),
                     onPressed: () {
                       _controller.nameController.text = category.name;
-                      Get.to(() => BarangCategoryFormPage(), arguments: category.id);
+                      Get.to(() => BarangCategoryFormPage(isEdit: true, ), arguments: category.id);
                     },
                     child: const Text('Edit'),
                   ),

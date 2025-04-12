@@ -11,7 +11,7 @@ class GudangDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final int id = Get.arguments as int;
-    _controller.fetchGudangById(id);
+    _controller.getGudangById(id);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFF),

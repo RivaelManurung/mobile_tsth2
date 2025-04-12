@@ -5,7 +5,6 @@ import 'package:inventory_tsth2/controller/Barang/barang_controller.dart';
 import 'package:inventory_tsth2/screens/barang/barang_form_page.dart';
 import 'package:inventory_tsth2/widget/loading_indicator.dart';
 
-
 class BarangDetailPage extends StatelessWidget {
   final BarangController _controller = Get.find();
 
@@ -13,8 +12,31 @@ class BarangDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final barangId = Get.arguments as int;
-    _controller.fetchBarangById(barangId);
+    int? barangId;
+    try {
+      if (Get.arguments != null) {
+        print('Get.arguments: ${Get.arguments}, Type: ${Get.arguments.runtimeType}');
+        if (Get.arguments is int) {
+          barangId = Get.arguments as int;
+        } else if (Get.arguments is String) {
+          barangId = int.parse(Get.arguments as String);
+        } else {
+          barangId = int.parse(Get.arguments.toString());
+        }
+      } else {
+        return Scaffold(
+          appBar: AppBar(title: const Text('Error')),
+          body: const Center(child: Text('No item ID provided')),
+        );
+      }
+    } catch (e) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Error')),
+        body: Center(child: Text('Invalid item ID: $e')),
+      );
+    }
+
+    _controller.getBarangById(barangId);
 
     return Scaffold(
       appBar: AppBar(
@@ -52,7 +74,7 @@ class BarangDetailPage extends StatelessWidget {
                 ),
               );
               if (confirmed == true) {
-                await _controller.deleteBarang(barangId);
+                await _controller.deleteBarang(barangId!);
               }
             },
           ),
@@ -77,14 +99,14 @@ class BarangDetailPage extends StatelessWidget {
                   backgroundColor: Colors.blue[100],
                   child: Text(
                     barang.barangNama.substring(0, 1).toUpperCase(),
-                    style: const TextStyle(
-                        fontSize: 40, color: Colors.blue),
+                    style: const TextStyle(fontSize: 40, color: Colors.blue),
                   ),
                 ),
               ),
               const SizedBox(height: 20),
+              _buildDetailRow('Code', barang.barangKode),
               _buildDetailRow('Name', barang.barangNama),
-              _buildDetailRow('Price', '\$${barang.barangHarga}'),
+              _buildDetailRow('Price', '\$${barang.barangHarga.toStringAsFixed(2)}'),
               _buildDetailRow('Available Stock', barang.stokTersedia.toString()),
               _buildDetailRow('Slug', barang.barangSlug),
               _buildDetailRow('Created At',
@@ -106,8 +128,7 @@ class BarangDetailPage extends StatelessWidget {
             width: 120,
             child: Text(
               label,
-              style: const TextStyle(
-                  fontWeight: FontWeight.bold, fontSize: 16),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
           ),
           const SizedBox(width: 10),

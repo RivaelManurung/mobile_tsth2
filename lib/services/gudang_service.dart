@@ -1,21 +1,38 @@
 import 'package:dio/dio.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:inventory_tsth2/Model/gudang_model.dart';
+import 'package:inventory_tsth2/services/auth_service.dart';
 
 class GudangService {
   final Dio _dio;
-  final SharedPreferences _prefs;
+  late final FlutterSecureStorage _storage;
+  final AuthService _authService;
 
-  GudangService({Dio? dio, SharedPreferences? prefs})
-      : _dio = dio ??
+  GudangService({
+    Dio? dio,
+    FlutterSecureStorage? storage,
+    AuthService? authService,
+  })  : _dio = dio ??
             Dio(BaseOptions(
               baseUrl: 'http://127.0.0.1:8000/api',
               headers: {'Accept': 'application/json'},
             )),
-        _prefs = prefs ?? (throw Exception('SharedPreferences not initialized'));
+        _authService = authService ?? AuthService() {
+    _storage = storage ?? const FlutterSecureStorage();
+  }
 
   Future<String?> _getToken() async {
-    return _prefs.getString('auth_token');
+    final token = await _authService.getToken();
+    print('Token retrieved: $token');
+    if (token == null) return null;
+
+    final isValid = await _authService.verifyToken(token);
+    print('Token valid: $isValid');
+    if (!isValid) {
+      await _authService.logout();
+      return null;
+    }
+    return token;
   }
 
   Future<List<Gudang>> getAllGudang() async {
@@ -25,16 +42,24 @@ class GudangService {
     try {
       final response = await _dio.get(
         '/gudangs',
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Cache-Control': 'no-cache',
+          },
+        ),
       );
 
+      print('getAllGudang response: ${response.data}');
+
       if (response.statusCode == 200) {
-        List<dynamic> data = response.data['data'];
+        List<dynamic> data = response.data['data'] ?? [];
         return data.map((json) => Gudang.fromJson(json)).toList();
       } else {
-        throw Exception(response.data['message'] ?? 'Failed to load gudang');
+        throw Exception(response.data['message'] ?? 'Gagal memuat daftar gudang');
       }
     } on DioException catch (e) {
+      print('DioException in getAllGudang: ${e.response?.data}');
       throw _handleError(e);
     }
   }
@@ -52,7 +77,7 @@ class GudangService {
       if (response.statusCode == 200) {
         return Gudang.fromJson(response.data['data']);
       } else {
-        throw Exception(response.data['message'] ?? 'Failed to load gudang details');
+        throw Exception(response.data['message'] ?? 'Gagal memuat detail gudang');
       }
     } on DioException catch (e) {
       throw _handleError(e);
@@ -75,12 +100,15 @@ class GudangService {
         ),
       );
 
+      print('createGudang response: ${response.data}');
+
       if (response.statusCode == 201) {
         return Gudang.fromJson(response.data['data']);
       } else {
-        throw Exception(response.data['message'] ?? 'Failed to create gudang');
+        throw Exception(response.data['message'] ?? 'Gagal membuat gudang');
       }
     } on DioException catch (e) {
+      print('DioException in createGudang: ${e.response?.data}');
       throw _handleError(e);
     }
   }
@@ -104,7 +132,7 @@ class GudangService {
       if (response.statusCode == 200) {
         return Gudang.fromJson(response.data['data']);
       } else {
-        throw Exception(response.data['message'] ?? 'Failed to update gudang');
+        throw Exception(response.data['message'] ?? 'Gagal memperbarui gudang');
       }
     } on DioException catch (e) {
       throw _handleError(e);
@@ -124,7 +152,7 @@ class GudangService {
       if (response.statusCode == 200) {
         return true;
       } else {
-        throw Exception(response.data['message'] ?? 'Failed to delete gudang');
+        throw Exception(response.data['message'] ?? 'Gagal menghapus gudang');
       }
     } on DioException catch (e) {
       throw _handleError(e);
@@ -140,6 +168,6 @@ class GudangService {
         return e.response!.data['message'];
       }
     }
-    return e.message ?? 'An error occurred';
+    return e.message ?? 'Terjadi kesalahan';
   }
 }

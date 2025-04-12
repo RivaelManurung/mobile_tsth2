@@ -3,59 +3,81 @@ import 'package:get/get.dart';
 import 'package:inventory_tsth2/Model/barang_category_model.dart';
 import 'package:inventory_tsth2/core/routes/routes_name.dart';
 import 'package:inventory_tsth2/services/barang_category_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class BarangCategoryController extends GetxController {
-  final BarangCategoryService _barangCategoryService;
+  final BarangCategoryService _service;
+
+  // Reactive state variables
   final RxList<BarangCategory> barangCategoryList = <BarangCategory>[].obs;
+  final RxList<BarangCategory> filteredBarangCategory = <BarangCategory>[].obs;
   final Rx<BarangCategory?> selectedBarangCategory = Rx<BarangCategory?>(null);
   final RxBool isLoading = false.obs;
   final RxString errorMessage = ''.obs;
+  final RxString searchQuery = ''.obs;
 
+  // Form controllers
   final TextEditingController nameController = TextEditingController();
+  final TextEditingController slugController = TextEditingController();
   final TextEditingController searchController = TextEditingController();
 
-  BarangCategoryController({BarangCategoryService? barangCategoryService})
-      : _barangCategoryService = barangCategoryService ?? BarangCategoryService(prefs: Get.find<SharedPreferences>());
+  BarangCategoryController({BarangCategoryService? service})
+      : _service = service ?? BarangCategoryService();
 
   @override
   void onInit() {
-    fetchAllBarangCategory();
     super.onInit();
+    fetchAllBarangCategory();
+    _setupSearchListener();
+  }
+
+  void _setupSearchListener() {
+    searchController.addListener(() {
+      searchQuery.value = searchController.text;
+    });
+
+    debounce(searchQuery, (_) => filterBarangCategory(),
+        time: const Duration(milliseconds: 300));
+  }
+
+  @override
+  void onClose() {
+    searchController.dispose();
+    nameController.dispose();
+    slugController.dispose();
+    super.onClose();
   }
 
   Future<void> fetchAllBarangCategory() async {
     try {
+      print('Fetching barang categories...'); // Debug log
       isLoading(true);
       errorMessage('');
-      final barangCategories = await _barangCategoryService.getAllBarangCategory();
-      barangCategoryList.assignAll(barangCategories);
+      final categories = await _service.getAllBarangCategory();
+      barangCategoryList.assignAll(categories);
+      filterBarangCategory();
+      print('Barang categories fetched successfully'); // Debug log
     } catch (e) {
+      print('Error fetching barang categories: $e'); // Debug log
       errorMessage(e.toString());
-      if (e.toString().contains('No token found')) {
+      if (errorMessage.value.contains('No token found')) {
+        print('Redirecting to login...'); // Debug log
         Get.offAllNamed(RoutesName.login);
-      } else {
-        Get.snackbar('Error', 'Failed to load barang categories: $e',
-            snackPosition: SnackPosition.BOTTOM);
       }
     } finally {
       isLoading(false);
     }
   }
 
-  Future<void> fetchBarangCategoryById(int id) async {
+  Future<void> getBarangCategoryById(int id) async {
     try {
       isLoading(true);
       errorMessage('');
-      final barangCategory = await _barangCategoryService.getBarangCategoryById(id);
-      selectedBarangCategory(barangCategory);
+      final category = await _service.getBarangCategoryById(id);
+      selectedBarangCategory(category);
     } catch (e) {
       errorMessage(e.toString());
-      if (e.toString().contains('No token found')) {
+      if (errorMessage.value.contains('No token found')) {
         Get.offAllNamed(RoutesName.login);
-      } else {
-        Get.snackbar('Error', 'Failed to load barang category details: $e',
-            snackPosition: SnackPosition.BOTTOM);
       }
     } finally {
       isLoading(false);
@@ -66,26 +88,19 @@ class BarangCategoryController extends GetxController {
     try {
       isLoading(true);
       errorMessage('');
-
-      if (nameController.text.isEmpty) {
-        throw Exception('Category name cannot be empty');
-      }
-
-      final newBarangCategory = await _barangCategoryService.createBarangCategory({
-        'name': nameController.text,
-      });
-      barangCategoryList.add(newBarangCategory);
+      final data = {
+        'name': nameController.text.trim(),
+        'slug': slugController.text.trim(),
+      };
+      final newCategory = await _service.createBarangCategory(data);
+      barangCategoryList.add(newCategory);
+      filterBarangCategory();
       Get.back();
-      Get.snackbar('Success', 'Barang category created successfully',
+      Get.snackbar('Success', 'Category created successfully',
           snackPosition: SnackPosition.BOTTOM);
     } catch (e) {
       errorMessage(e.toString());
-      if (e.toString().contains('No token found')) {
-        Get.offAllNamed(RoutesName.login);
-      } else {
-        Get.snackbar('Error', 'Failed to create barang category: $e',
-            snackPosition: SnackPosition.BOTTOM);
-      }
+      Get.snackbar('Error', e.toString(), snackPosition: SnackPosition.BOTTOM);
     } finally {
       isLoading(false);
     }
@@ -95,29 +110,23 @@ class BarangCategoryController extends GetxController {
     try {
       isLoading(true);
       errorMessage('');
-
-      if (nameController.text.isEmpty) {
-        throw Exception('Category name cannot be empty');
-      }
-
-      final updatedBarangCategory = await _barangCategoryService.updateBarangCategory(id, {
-        'name': nameController.text,
-      });
-      final index = barangCategoryList.indexWhere((category) => category.id == id);
+      final data = {
+        'name': nameController.text.trim(),
+        'slug': slugController.text.trim(),
+      };
+      final updatedCategory = await _service.updateBarangCategory(id, data);
+      final index = barangCategoryList.indexWhere((item) => item.id == id);
       if (index != -1) {
-        barangCategoryList[index] = updatedBarangCategory;
+        barangCategoryList[index] = updatedCategory;
+        filterBarangCategory();
       }
+      selectedBarangCategory(updatedCategory);
       Get.back();
-      Get.snackbar('Success', 'Barang category updated successfully',
+      Get.snackbar('Success', 'Category updated successfully',
           snackPosition: SnackPosition.BOTTOM);
     } catch (e) {
       errorMessage(e.toString());
-      if (e.toString().contains('No token found')) {
-        Get.offAllNamed(RoutesName.login);
-      } else {
-        Get.snackbar('Error', 'Failed to update barang category: $e',
-            snackPosition: SnackPosition.BOTTOM);
-      }
+      Get.snackbar('Error', e.toString(), snackPosition: SnackPosition.BOTTOM);
     } finally {
       isLoading(false);
     }
@@ -127,38 +136,82 @@ class BarangCategoryController extends GetxController {
     try {
       isLoading(true);
       errorMessage('');
-      await _barangCategoryService.deleteBarangCategory(id);
-      barangCategoryList.removeWhere((category) => category.id == id);
-      Get.back();
-      Get.snackbar('Success', 'Barang category deleted successfully',
-          snackPosition: SnackPosition.BOTTOM);
-    } catch (e) {
-      errorMessage(e.toString());
-      if (e.toString().contains('No token found')) {
-        Get.offAllNamed(RoutesName.login);
-      } else {
-        Get.snackbar('Error', 'Failed to delete barang category: $e',
+      final success = await _service.deleteBarangCategory(id);
+      if (success) {
+        barangCategoryList.removeWhere((item) => item.id == id);
+        filterBarangCategory();
+        Get.back();
+        Get.snackbar('Success', 'Category deleted successfully',
             snackPosition: SnackPosition.BOTTOM);
       }
+    } catch (e) {
+      errorMessage(e.toString());
+      Get.snackbar('Error', e.toString(), snackPosition: SnackPosition.BOTTOM);
     } finally {
       isLoading(false);
     }
   }
 
-  void clearForm() {
-    nameController.clear();
-    selectedBarangCategory(null);
+  Future<void> restoreBarangCategory(int id) async {
+    try {
+      isLoading(true);
+      errorMessage('');
+      final restoredCategory = await _service.restoreBarangCategory(id);
+      final index = barangCategoryList.indexWhere((item) => item.id == id);
+      if (index != -1) {
+        barangCategoryList[index] = restoredCategory;
+        filterBarangCategory();
+      }
+      selectedBarangCategory(restoredCategory);
+      Get.snackbar('Success', 'Category restored successfully',
+          snackPosition: SnackPosition.BOTTOM);
+    } catch (e) {
+      errorMessage(e.toString());
+      Get.snackbar('Error', e.toString(), snackPosition: SnackPosition.BOTTOM);
+    } finally {
+      isLoading(false);
+    }
   }
 
-  List<BarangCategory> get filteredBarangCategory {
-    if (searchController.text.isEmpty) {
-      return barangCategoryList;
-    } else {
-      return barangCategoryList.where((category) {
-        return category.name
-            .toLowerCase()
-            .contains(searchController.text.toLowerCase());
-      }).toList();
+  Future<void> forceDeleteBarangCategory(int id) async {
+    try {
+      isLoading(true);
+      errorMessage('');
+      final success = await _service.forceDeleteBarangCategory(id);
+      if (success) {
+        barangCategoryList.removeWhere((item) => item.id == id);
+        filterBarangCategory();
+        Get.back();
+        Get.snackbar('Success', 'Category permanently deleted',
+            snackPosition: SnackPosition.BOTTOM);
+      }
+    } catch (e) {
+      errorMessage(e.toString());
+      Get.snackbar('Error', e.toString(), snackPosition: SnackPosition.BOTTOM);
+    } finally {
+      isLoading(false);
     }
+  }
+
+  void filterBarangCategory() {
+    final query = searchQuery.value.toLowerCase();
+    if (query.isEmpty) {
+      filteredBarangCategory.assignAll(barangCategoryList);
+    } else {
+      filteredBarangCategory.assignAll(
+        barangCategoryList.where((item) =>
+            item.name.toLowerCase().contains(query) ||
+            item.slug.toLowerCase().contains(query)),
+      );
+    }
+  }
+
+  void clearForm() {
+    nameController.clear();
+    slugController.clear();
+    searchController.clear();
+    searchQuery.value = '';
+    errorMessage('');
+    selectedBarangCategory(null);
   }
 }

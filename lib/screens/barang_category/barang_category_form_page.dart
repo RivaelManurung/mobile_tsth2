@@ -3,9 +3,14 @@ import 'package:get/get.dart';
 import 'package:inventory_tsth2/controller/BarangCategory/barang_category_controller.dart';
 
 class BarangCategoryFormPage extends StatelessWidget {
-  BarangCategoryFormPage({super.key});
+  final bool isEdit;
+  final int? categoryId;
 
-  final BarangCategoryController _controller = Get.find<BarangCategoryController>();
+  BarangCategoryFormPage({Key? key, required this.isEdit, this.categoryId})
+      : super(key: key);
+      
+  final BarangCategoryController _controller =
+      Get.find<BarangCategoryController>();
   final _formKey = GlobalKey<FormState>();
 
   @override

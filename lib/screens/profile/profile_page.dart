@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:get/get.dart'; // Add GetX for navigation
 import 'package:inventory_tsth2/Model/user_model.dart';
 import 'package:inventory_tsth2/controller/Profile/profile_controller.dart';
 import 'package:inventory_tsth2/core/routes/routes_name.dart';
 import 'package:inventory_tsth2/services/user_services.dart';
 import 'package:inventory_tsth2/widget/info_card.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'edit_profile_page.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -29,12 +29,11 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _initializeController() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      _controller = ProfileController(userService: UserService(prefs: prefs));
+      _controller = ProfileController(userService: UserService());
       setState(() {
         _userFuture = _controller.getCurrentUser().catchError((error) {
           setState(() {
-            _errorMessage = 'Failed to load profile: ${error.toString()}';
+            _errorMessage = error.toString();
           });
           return User.empty();
         });
@@ -60,7 +59,7 @@ class _ProfilePageState extends State<ProfilePage> {
     });
   }
 
-  void _showLogoutDialog(BuildContext context) {
+  void _showLogoutDialog() {
     showDialog(
       context: context,
       builder: (context) {
@@ -108,11 +107,13 @@ class _ProfilePageState extends State<ProfilePage> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 12),
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
                       ),
                       onPressed: () async {
                         Navigator.pop(context);
-                        await _performLogout(context);
+                        await _performLogout();
                       },
                       child: const Text('Logout'),
                     ),
@@ -126,40 +127,29 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Future<void> _performLogout(BuildContext context) async {
-    showDialog(
-      context: context,
+  Future<void> _performLogout() async {
+    // Show loading dialog
+    Get.dialog(
+      const Center(child: CircularProgressIndicator()),
       barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(),
-      ),
     );
 
     try {
-      await _controller.logout(context);
-      if (mounted) Navigator.pop(context);
-      
-      if (mounted) {
-        Navigator.pushNamedAndRemoveUntil(
-          context,
-          RoutesName.login,
-          (Route<dynamic> route) => false,
-        );
-      }
+      await _controller.logout();
+      Get.back(); // Close loading dialog
+      debugPrint("Navigating to: ${RoutesName.login}");
+      // Use GetX to clear stack and navigate to login
+      Get.offAllNamed(RoutesName.login);
     } catch (e) {
-      if (mounted) Navigator.pop(context);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Logout failed: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        );
-      }
+      Get.back(); // Close loading dialog
+      Get.snackbar(
+        'Error',
+        'Logout failed: ${e.toString()}',
+        backgroundColor: Colors.red,
+        snackPosition: SnackPosition.BOTTOM,
+        margin: const EdgeInsets.all(16),
+        borderRadius: 12,
+      );
     }
   }
 
@@ -172,21 +162,37 @@ class _ProfilePageState extends State<ProfilePage> {
     }
 
     if (_errorMessage != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_errorMessage!),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                _errorMessage!,
+                style: const TextStyle(color: Colors.red),
+                textAlign: TextAlign.center,
+              ),
+              if (_errorMessage!.contains('No token found'))
+                Padding(
+                  padding: const EdgeInsets.only(top: 16.0),
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4E6AFF),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: () {
+                      debugPrint("Navigating to: ${RoutesName.login}");
+                      Get.offAllNamed(RoutesName.login);
+                    },
+                    child: const Text('Go to Login'),
+                  ),
+                ),
+            ],
           ),
-        );
-        setState(() {
-          _errorMessage = null;
-        });
-      });
+        ),
+      );
     }
 
     return Scaffold(
@@ -198,8 +204,40 @@ class _ProfilePageState extends State<ProfilePage> {
             return const Center(child: CircularProgressIndicator());
           }
 
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    snapshot.error.toString(),
+                    style: const TextStyle(color: Colors.red),
+                    textAlign: TextAlign.center,
+                  ),
+                  if (snapshot.error.toString().contains('No token found'))
+                    Padding(
+                      padding: const EdgeInsets.only(top: 16.0),
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF4E6AFF),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: () {
+                          debugPrint("Navigating to: ${RoutesName.login}");
+                          Get.offAllNamed(RoutesName.login);
+                        },
+                        child: const Text('Go to Login'),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          }
+
           final user = snapshot.data ?? User.empty();
-          
+
           return CustomScrollView(
             physics: const BouncingScrollPhysics(),
             slivers: [
@@ -326,8 +364,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ? Image.network(
                   _controller.getPhotoUrl(user.photoUrl!),
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => 
-                      _buildInitialsAvatar(user),
+                  errorBuilder: (context, error, stackTrace) => _buildInitialsAvatar(user),
                 )
               : _buildInitialsAvatar(user),
         ),
@@ -367,13 +404,13 @@ class _ProfilePageState extends State<ProfilePage> {
           InfoItem(
             icon: Icons.phone,
             title: 'Phone',
-            value: user.phone!, // Fixed: Added required value parameter
+            value: user.phone!,
           ),
         if (user.address != null && user.address!.isNotEmpty)
           InfoItem(
             icon: Icons.location_on,
             title: 'Address',
-            value: user.address!, // Fixed: Added required value parameter
+            value: user.address!,
           ),
         InfoItem(
           icon: Icons.calendar_today,
@@ -397,14 +434,14 @@ class _ProfilePageState extends State<ProfilePage> {
         InfoItem(
           icon: Icons.lock,
           title: 'Change Password',
-          value: '', // Added an empty string as a placeholder for the required value
+          value: '',
           isAction: true,
           onTap: () => _showUpdatePasswordDialog(context),
         ),
         InfoItem(
           icon: Icons.edit,
           title: 'Edit Profile',
-          value:'',
+          value: '',
           isAction: true,
           onTap: () => _navigateToEditProfile(context),
         ),
@@ -425,7 +462,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           elevation: 0,
         ),
-        onPressed: () => _showLogoutDialog(context),
+        onPressed: _showLogoutDialog,
         child: const Text('Logout'),
       ),
     ).animate().fadeIn(delay: 400.ms).slideY(begin: 20);
@@ -435,39 +472,31 @@ class _ProfilePageState extends State<ProfilePage> {
     try {
       final user = await _userFuture;
       if (user == null || user == User.empty()) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(  // Fixed: Removed const
-            content: Text('No user data available'),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
+        Get.snackbar(
+          'Error',
+          'No user data available',
+          backgroundColor: Colors.red,
+          snackPosition: SnackPosition.BOTTOM,
+          margin: const EdgeInsets.all(16),
+          borderRadius: 12,
         );
         return;
       }
 
-      final result = await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => EditProfilePage(user: user),
-        ),
-      );
+      final result = await Get.to(() => EditProfilePage(user: user));
 
       if (result != null && mounted) {
         _refreshUser();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
+        Get.snackbar(
+          'Error',
+          'Error: ${e.toString()}',
+          backgroundColor: Colors.red,
+          snackPosition: SnackPosition.BOTTOM,
+          margin: const EdgeInsets.all(16),
+          borderRadius: 12,
         );
       }
     }
@@ -549,20 +578,19 @@ class _ProfilePageState extends State<ProfilePage> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 12),
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
                       ),
                       onPressed: () async {
-                        if (newPasswordController.text != 
-                            confirmPasswordController.text) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(  // Fixed: Removed const
-                              content: Text('New passwords do not match'),
-                              backgroundColor: Colors.red,
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
+                        if (newPasswordController.text != confirmPasswordController.text) {
+                          Get.snackbar(
+                            'Error',
+                            'New passwords do not match',
+                            backgroundColor: Colors.red,
+                            snackPosition: SnackPosition.BOTTOM,
+                            margin: const EdgeInsets.all(16),
+                            borderRadius: 12,
                           );
                           return;
                         }
@@ -575,28 +603,24 @@ class _ProfilePageState extends State<ProfilePage> {
 
                           if (mounted) {
                             Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(  // Fixed: Removed const
-                                content: Text('Password updated successfully'),
-                                backgroundColor: Colors.green,
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
+                            Get.snackbar(
+                              'Success',
+                              'Password updated successfully',
+                              backgroundColor: Colors.green,
+                              snackPosition: SnackPosition.BOTTOM,
+                              margin: const EdgeInsets.all(16),
+                              borderRadius: 12,
                             );
                           }
                         } catch (e) {
                           if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Error: ${e.toString()}'),
-                                backgroundColor: Colors.red,
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
+                            Get.snackbar(
+                              'Error',
+                              'Error: ${e.toString()}',
+                              backgroundColor: Colors.red,
+                              snackPosition: SnackPosition.BOTTOM,
+                              margin: const EdgeInsets.all(16),
+                              borderRadius: 12,
                             );
                           }
                         }
