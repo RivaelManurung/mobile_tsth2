@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:inventory_tsth2/Model/gudang_model.dart';
+import 'package:inventory_tsth2/Model/user_model.dart';
 import 'package:inventory_tsth2/core/routes/routes_name.dart';
 import 'package:inventory_tsth2/services/gudang_service.dart';
+import 'package:inventory_tsth2/services/user_services.dart';
 
 class GudangController extends GetxController {
   final GudangService _service;
+  final UserService _userService;
 
   // Reactive state variables
   final RxList<Gudang> gudangList = <Gudang>[].obs;
@@ -14,19 +17,25 @@ class GudangController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxString errorMessage = ''.obs;
   final RxString searchQuery = ''.obs;
+  final RxList<User> userList = <User>[].obs; // Daftar pengguna
+  final Rx<User?> selectedUser = Rx<User?>(null); // Pengguna yang dipilih untuk form
 
   // Form controllers
   final TextEditingController nameController = TextEditingController();
   final TextEditingController descriptionController = TextEditingController();
   final TextEditingController searchController = TextEditingController();
 
-  GudangController({GudangService? service})
-      : _service = service ?? GudangService();
+  GudangController({
+    GudangService? service,
+    UserService? userService,
+  })  : _service = service ?? GudangService(),
+        _userService = userService ?? UserService();
 
   @override
   void onInit() {
     super.onInit();
     fetchAllGudang();
+    fetchAllUsers(); // Ambil daftar pengguna
     _setupSearchListener();
   }
 
@@ -45,6 +54,27 @@ class GudangController extends GetxController {
     nameController.dispose();
     descriptionController.dispose();
     super.onClose();
+  }
+
+  Future<void> fetchAllUsers() async {
+    try {
+      print('Fetching users...');
+      final users = await _userService.getAllUsers();
+      userList.assignAll(users);
+      print('Users fetched successfully: ${userList.length} users');
+    } catch (e) {
+      print('Error fetching users: $e');
+      Get.snackbar(
+        'Gagal',
+        'Gagal memuat daftar pengguna: $e',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(16),
+        borderRadius: 12,
+        duration: const Duration(seconds: 3),
+      );
+    }
   }
 
   Future<void> fetchAllGudang() async {
@@ -74,7 +104,14 @@ class GudangController extends GetxController {
       errorMessage('');
       final gudang = await _service.getGudangById(id);
       selectedGudang(gudang);
+      // Set selectedUser berdasarkan user_id dari gudang
+      if (gudang.userId != null) {
+        selectedUser.value = userList.firstWhereOrNull((user) => user.id == gudang.userId);
+      } else {
+        selectedUser.value = null;
+      }
     } catch (e) {
+      print('Error fetching gudang by id: $e');
       errorMessage(e.toString());
       if (errorMessage.value.contains('No token found')) {
         Get.offAllNamed(RoutesName.login);
@@ -87,12 +124,14 @@ class GudangController extends GetxController {
   Future<void> createGudang() async {
     try {
       isLoading(true);
-      errorMessage('');
 
       // Validasi input
       final name = nameController.text.trim();
       if (name.isEmpty) {
         throw Exception('Nama gudang tidak boleh kosong');
+      }
+      if (selectedUser.value == null) {
+        throw Exception('Pengguna operator wajib dipilih');
       }
       final description = descriptionController.text.trim().isNotEmpty
           ? descriptionController.text.trim()
@@ -101,11 +140,13 @@ class GudangController extends GetxController {
       final data = {
         'name': name,
         if (description != null) 'description': description,
+        'user_id': selectedUser.value!.id,
       };
 
       final newGudang = await _service.createGudang(data);
       gudangList.add(newGudang);
       filterGudang();
+      clearForm();
 
       Get.snackbar(
         'Berhasil',
@@ -115,10 +156,10 @@ class GudangController extends GetxController {
         colorText: Colors.white,
         margin: const EdgeInsets.all(16),
         borderRadius: 12,
+        duration: const Duration(seconds: 3),
       );
     } catch (e) {
       print('Error creating gudang: $e');
-      errorMessage(e.toString());
       Get.snackbar(
         'Gagal',
         e.toString(),
@@ -127,6 +168,7 @@ class GudangController extends GetxController {
         colorText: Colors.white,
         margin: const EdgeInsets.all(16),
         borderRadius: 12,
+        duration: const Duration(seconds: 3),
       );
     } finally {
       isLoading(false);
@@ -136,12 +178,14 @@ class GudangController extends GetxController {
   Future<void> updateGudang(int id) async {
     try {
       isLoading(true);
-      errorMessage('');
 
       // Validasi input
       final name = nameController.text.trim();
       if (name.isEmpty) {
         throw Exception('Nama gudang tidak boleh kosong');
+      }
+      if (selectedUser.value == null) {
+        throw Exception('Pengguna operator wajib dipilih');
       }
       final description = descriptionController.text.trim().isNotEmpty
           ? descriptionController.text.trim()
@@ -150,28 +194,34 @@ class GudangController extends GetxController {
       final data = {
         'name': name,
         if (description != null) 'description': description,
+        'user_id': selectedUser.value!.id,
       };
 
-      final updatedGudang = await _service.updateGudang(id, data);
-      final index = gudangList.indexWhere((item) => item.id == id);
-      if (index != -1) {
-        gudangList[index] = updatedGudang;
-        filterGudang();
-      }
-      selectedGudang(updatedGudang);
+      final success = await _service.updateGudang(id, data);
+      if (success) {
+        // Ambil ulang data terbaru dari server
+        final updatedGudang = await _service.getGudangById(id);
+        final index = gudangList.indexWhere((item) => item.id == id);
+        if (index != -1) {
+          gudangList[index] = updatedGudang;
+          filterGudang();
+        }
+        selectedGudang(updatedGudang);
+        clearForm();
 
-      Get.snackbar(
-        'Berhasil',
-        'Gudang berhasil diperbarui',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
-        margin: const EdgeInsets.all(16),
-        borderRadius: 12,
-      );
+        Get.snackbar(
+          'Berhasil',
+          'Gudang berhasil diperbarui',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+          margin: const EdgeInsets.all(16),
+          borderRadius: 12,
+          duration: const Duration(seconds: 3),
+        );
+      }
     } catch (e) {
       print('Error updating gudang: $e');
-      errorMessage(e.toString());
       Get.snackbar(
         'Gagal',
         e.toString(),
@@ -180,6 +230,7 @@ class GudangController extends GetxController {
         colorText: Colors.white,
         margin: const EdgeInsets.all(16),
         borderRadius: 12,
+        duration: const Duration(seconds: 3),
       );
     } finally {
       isLoading(false);
@@ -194,6 +245,7 @@ class GudangController extends GetxController {
       if (success) {
         gudangList.removeWhere((item) => item.id == id);
         filterGudang();
+        clearForm();
         Get.snackbar(
           'Berhasil',
           'Gudang berhasil dihapus',
@@ -202,6 +254,7 @@ class GudangController extends GetxController {
           colorText: Colors.white,
           margin: const EdgeInsets.all(16),
           borderRadius: 12,
+          duration: const Duration(seconds: 3),
         );
       }
     } catch (e) {
@@ -209,12 +262,13 @@ class GudangController extends GetxController {
       errorMessage(e.toString());
       Get.snackbar(
         'Gagal',
-        e.toString(),
+        errorMessage.value,
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.red,
         colorText: Colors.white,
         margin: const EdgeInsets.all(16),
         borderRadius: 12,
+        duration: const Duration(seconds: 3),
       );
     } finally {
       isLoading(false);
@@ -239,7 +293,11 @@ class GudangController extends GetxController {
     descriptionController.clear();
     searchController.clear();
     searchQuery.value = '';
-    errorMessage('');
     selectedGudang(null);
+    selectedUser(null); // Reset pengguna yang dipilih
+  }
+
+  void resetErrorForListPage() {
+    errorMessage('');
   }
 }

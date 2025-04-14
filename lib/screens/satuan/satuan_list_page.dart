@@ -19,6 +19,7 @@ class SatuanListPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    _controller.resetErrorForListPage();
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
@@ -40,6 +41,7 @@ class SatuanListPage extends StatelessWidget {
                 onPressed: () {
                   _selectedSatuanId.value = null;
                   _controller.selectedSatuan.value = null;
+                  _controller.resetErrorForListPage(); // Reset error when exiting detail view
                 },
               )
             : IconButton(
@@ -127,19 +129,19 @@ class SatuanListPage extends StatelessWidget {
                 ),
               );
             }
-            if (_controller.errorMessage.value.isNotEmpty) {
+            if (_controller.listErrorMessage.value.isNotEmpty) {
               return Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      _controller.errorMessage.value.contains('No token found')
+                      _controller.listErrorMessage.value.contains('No token found')
                           ? 'Sesi Anda telah berakhir. Silakan masuk kembali.'
-                          : _controller.errorMessage.value,
+                          : _controller.listErrorMessage.value,
                       style: const TextStyle(color: Colors.red),
                       textAlign: TextAlign.center,
                     ),
-                    if (_controller.errorMessage.value.contains('No token found'))
+                    if (_controller.listErrorMessage.value.contains('No token found'))
                       Padding(
                         padding: const EdgeInsets.only(top: 16.0),
                         child: ElevatedButton(
@@ -455,6 +457,7 @@ class SatuanListPage extends StatelessWidget {
               if (_controller.errorMessage.value.isEmpty) {
                 _selectedSatuanId.value = null; // Kembali ke daftar
                 _controller.selectedSatuan.value = null;
+                _controller.resetErrorForListPage(); // Reset error after operation
                 Get.snackbar(
                   'Berhasil',
                   'Satuan berhasil dihapus',
@@ -560,6 +563,7 @@ class SatuanListPage extends StatelessWidget {
               if (_controller.errorMessage.value.isEmpty) {
                 _selectedSatuanId.value = null; // Kembali ke daftar
                 _controller.selectedSatuan.value = null;
+                _controller.resetErrorForListPage(); // Reset error after operation
                 Get.snackbar(
                   'Berhasil',
                   'Satuan berhasil dihapus secara permanen',
@@ -593,6 +597,7 @@ class SatuanListPage extends StatelessWidget {
 
   Future<void> _refreshData() async {
     try {
+      _controller.resetErrorForListPage(); // Reset errors before refresh
       await _controller.fetchAllSatuan();
       _refreshController.refreshCompleted();
       Get.snackbar(

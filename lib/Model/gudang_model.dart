@@ -1,8 +1,11 @@
+import 'package:inventory_tsth2/Model/user_model.dart';
+
 class Gudang {
   final int id;
   final String name;
   final String? slug;
   final String? description;
+  final int? userId; // Pastikan field ini ada
   final int stokTersedia;
   final int stokDipinjam;
   final int stokMaintenance;
@@ -18,6 +21,7 @@ class Gudang {
     required this.stokTersedia,
     required this.stokDipinjam,
     required this.stokMaintenance,
+    this.userId,
     this.createdAt,
     this.updatedAt,
     this.deletedAt,
@@ -29,6 +33,7 @@ class Gudang {
       name: json['name'] ?? '',
       slug: json['slug'],
       description: json['description'],
+      userId: json['user_id'],
       stokTersedia: json['stok_tersedia'] ?? 0,
       stokDipinjam: json['stok_dipinjam'] ?? 0,
       stokMaintenance: json['stok_maintenance'] ?? 0,

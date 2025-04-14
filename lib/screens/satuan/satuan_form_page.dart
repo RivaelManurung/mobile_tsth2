@@ -18,7 +18,7 @@ class SatuanFormPage extends StatelessWidget {
       appBar: AppBar(
         title: Text(
           isEdit ? 'Ubah Satuan' : 'Tambah Satuan',
-        style: const TextStyle(
+          style: const TextStyle(
             color: Color(0xFF1A1D1F),
             fontWeight: FontWeight.w700,
             fontSize: 22,
@@ -98,52 +98,8 @@ class SatuanFormPage extends StatelessWidget {
                       : () async {
                           if (isEdit && satuanId != null) {
                             await _controller.updateSatuan(satuanId!);
-                            if (_controller.errorMessage.value.isEmpty) {
-                              Get.back();
-                              Get.snackbar(
-                                'Berhasil',
-                                'Satuan berhasil diperbarui',
-                                snackPosition: SnackPosition.BOTTOM,
-                                backgroundColor: Colors.green,
-                                colorText: Colors.white,
-                                margin: const EdgeInsets.all(16),
-                                borderRadius: 12,
-                              );
-                            } else {
-                              Get.snackbar(
-                                'Gagal',
-                                _controller.errorMessage.value,
-                                snackPosition: SnackPosition.BOTTOM,
-                                backgroundColor: Colors.red,
-                                colorText: Colors.white,
-                                margin: const EdgeInsets.all(16),
-                                borderRadius: 12,
-                              );
-                            }
                           } else {
                             await _controller.createSatuan();
-                            if (_controller.errorMessage.value.isEmpty) {
-                              Get.back();
-                              Get.snackbar(
-                                'Berhasil',
-                                'Satuan berhasil ditambahkan',
-                                snackPosition: SnackPosition.BOTTOM,
-                                backgroundColor: Colors.green,
-                                colorText: Colors.white,
-                                margin: const EdgeInsets.all(16),
-                                borderRadius: 12,
-                              );
-                            } else {
-                              Get.snackbar(
-                                'Gagal',
-                                _controller.errorMessage.value,
-                                snackPosition: SnackPosition.BOTTOM,
-                                backgroundColor: Colors.red,
-                                colorText: Colors.white,
-                                margin: const EdgeInsets.all(16),
-                                borderRadius: 12,
-                              );
-                            }
                           }
                         },
                   style: ElevatedButton.styleFrom(
@@ -168,17 +124,6 @@ class SatuanFormPage extends StatelessWidget {
                           ),
                         ),
                 )).animate().fadeIn(duration: 400.ms, delay: 200.ms).slideY(begin: 0.2),
-            // Tampilkan Pesan Error jika Ada
-            Obx(() => _controller.errorMessage.value.isNotEmpty
-                ? Padding(
-                    padding: const EdgeInsets.only(top: 16.0),
-                    child: Text(
-                      _controller.errorMessage.value,
-                      style: const TextStyle(color: Colors.red, fontSize: 14),
-                      textAlign: TextAlign.center,
-                    ).animate().fadeIn(duration: 300.ms),
-                  )
-                : const SizedBox.shrink()),
           ],
         ),
       ),

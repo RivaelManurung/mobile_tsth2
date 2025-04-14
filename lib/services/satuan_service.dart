@@ -201,13 +201,27 @@ class SatuanService {
 
   String _handleError(DioException e) {
     if (e.response?.data != null) {
-      if (e.response?.data['error'] != null) {
-        return e.response!.data['error'];
-      }
-      if (e.response?.data['message'] != null) {
-        return e.response!.data['message'];
-      }
+      final data = e.response!.data;
+      if (data is Map<String, dynamic>) {
+        // Check for validation errors
+        if (data['errors'] != null && data['errors'] is Map<String, dynamic>) {
+          final errors = data['errors'] as Map<String, dynamic>;
+          if (errors.containsKey('name') &&
+              errors['name'] is List &&
+              errors['name'].isNotEmpty) {
+            return errors['name'][
+                0]; // Return backend message, e.g., "Nama satuan sudah digunakan."
+          }
+        }
+        // Fallback to generic message or error
+        if (data['message'] != null) {
+          return data['message'];
+        }
+        if (data['error'] != null) {
+          return data['error'];
+        }
+      } 
     }
-    return e.message ?? 'An error occurred';
+    return 'Terjadi kesalahan. Silakan coba lagi.';
   }
 }

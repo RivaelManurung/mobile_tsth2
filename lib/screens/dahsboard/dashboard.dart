@@ -372,28 +372,6 @@ class DashboardPage extends StatelessWidget {
                 onTap: () =>
                     Navigator.pushNamed(context, RoutesName.jenisBarangList),
               ),
-              if (isLargeScreen) ...[
-                _buildActionCard(
-                  context: context,
-                  icon: Icons.settings,
-                  title: 'Settings',
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF607D8B), Color(0xFF4B636E)],
-                  ),
-                  isSmallScreen: isSmallScreen,
-                  onTap: () {},
-                ),
-                _buildActionCard(
-                  context: context,
-                  icon: Icons.analytics,
-                  title: 'Reports',
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFFFC107), Color(0xFFE6A800)],
-                  ),
-                  isSmallScreen: isSmallScreen,
-                  onTap: () {},
-                ),
-              ],
             ],
           ),
         ]),

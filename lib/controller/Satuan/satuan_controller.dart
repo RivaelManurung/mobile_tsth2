@@ -12,7 +12,8 @@ class SatuanController extends GetxController {
   final RxList<Satuan> filteredSatuan = <Satuan>[].obs;
   final Rx<Satuan?> selectedSatuan = Rx<Satuan?>(null);
   final RxBool isLoading = false.obs;
-  final RxString errorMessage = ''.obs;
+  final RxString errorMessage = ''.obs; // General error message (e.g., for form operations)
+  final RxString listErrorMessage = ''.obs; // Error message specific to list fetching
   final RxString searchQuery = ''.obs;
 
   // Form controllers
@@ -47,19 +48,24 @@ class SatuanController extends GetxController {
     super.onClose();
   }
 
+  void resetErrorForListPage() {
+    errorMessage('');
+    listErrorMessage('');
+  }
+
   Future<void> fetchAllSatuan() async {
     try {
       print('Fetching satuan...'); // Debug log
       isLoading(true);
-      errorMessage('');
+      listErrorMessage('');
       final satuan = await _service.getAllSatuan();
       satuanList.assignAll(satuan);
       filterSatuan();
       print('Satuan fetched successfully'); // Debug log
     } catch (e) {
       print('Error fetching satuan: $e'); // Debug log
-      errorMessage(e.toString());
-      if (errorMessage.value.contains('No token found')) {
+      listErrorMessage(e.toString());
+      if (listErrorMessage.value.contains('No token found')) {
         print('Redirecting to login...'); // Debug log
         Get.offAllNamed(RoutesName.login);
       }
@@ -97,10 +103,15 @@ class SatuanController extends GetxController {
       filterSatuan();
       Get.back();
       Get.snackbar('Success', 'Unit created successfully',
-          snackPosition: SnackPosition.BOTTOM);
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green,
+          colorText: Colors.white);
     } catch (e) {
       errorMessage(e.toString());
-      Get.snackbar('Error', e.toString(), snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('Gagal', e.toString(),
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white);
     } finally {
       isLoading(false);
     }
@@ -123,10 +134,15 @@ class SatuanController extends GetxController {
       selectedSatuan(updatedSatuan);
       Get.back();
       Get.snackbar('Success', 'Unit updated successfully',
-          snackPosition: SnackPosition.BOTTOM);
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green,
+          colorText: Colors.white);
     } catch (e) {
       errorMessage(e.toString());
-      Get.snackbar('Error', e.toString(), snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('Gagal', e.toString(),
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white);
     } finally {
       isLoading(false);
     }
@@ -142,11 +158,16 @@ class SatuanController extends GetxController {
         filterSatuan();
         Get.back();
         Get.snackbar('Success', 'Unit deleted successfully',
-            snackPosition: SnackPosition.BOTTOM);
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.green,
+            colorText: Colors.white);
       }
     } catch (e) {
       errorMessage(e.toString());
-      Get.snackbar('Error', e.toString(), snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('Gagal', e.toString(),
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white);
     } finally {
       isLoading(false);
     }
@@ -164,10 +185,15 @@ class SatuanController extends GetxController {
       }
       selectedSatuan(restoredSatuan);
       Get.snackbar('Success', 'Unit restored successfully',
-          snackPosition: SnackPosition.BOTTOM);
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green,
+          colorText: Colors.white);
     } catch (e) {
       errorMessage(e.toString());
-      Get.snackbar('Error', e.toString(), snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('Gagal', e.toString(),
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white);
     } finally {
       isLoading(false);
     }
@@ -183,11 +209,16 @@ class SatuanController extends GetxController {
         filterSatuan();
         Get.back();
         Get.snackbar('Success', 'Unit permanently deleted',
-            snackPosition: SnackPosition.BOTTOM);
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.green,
+            colorText: Colors.white);
       }
     } catch (e) {
       errorMessage(e.toString());
-      Get.snackbar('Error', e.toString(), snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('Gagal', e.toString(),
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white);
     } finally {
       isLoading(false);
     }

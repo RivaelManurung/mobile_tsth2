@@ -1,4 +1,4 @@
-// lib/services/user_services.dart
+// lib/services/user_service.dart
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -38,7 +38,7 @@ class UserService {
 
     try {
       final response = await _dio.get(
-        '/auth/user', // Matches api/auth/user
+        '/auth/user',
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
       if (response.statusCode != 200) {
@@ -46,6 +46,37 @@ class UserService {
       }
       return User.fromJson(response.data['data']);
     } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  // Tambahkan metode untuk mengambil daftar semua pengguna
+  Future<List<User>> getAllUsers() async {
+    final token = await _getToken();
+    if (token == null) throw Exception('No token found');
+
+    try {
+      final response = await _dio.get(
+        '/users', // Sesuaikan dengan endpoint backend Anda untuk mengambil daftar pengguna
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Cache-Control': 'no-cache',
+          },
+        ),
+      );
+
+      print('getAllUsers response: ${response.data}');
+
+      if (response.statusCode == 200) {
+        List<dynamic> data = response.data['data'] ?? response.data;
+        return data.map((json) => User.fromJson(json)).toList();
+      } else {
+        throw Exception(
+            response.data['message'] ?? 'Gagal memuat daftar pengguna');
+      }
+    } on DioException catch (e) {
+      print('DioException in getAllUsers: ${e.response?.data}');
       throw _handleError(e);
     }
   }
@@ -68,7 +99,7 @@ class UserService {
       });
 
       final response = await _dio.put(
-        '/users/$userId', // Matches api/users/{user}
+        '/users/$userId',
         data: formData,
         options: Options(
           headers: {
@@ -96,7 +127,7 @@ class UserService {
 
     try {
       final response = await _dio.post(
-        '/users/change-password', // Matches api/users/change-password
+        '/users/change-password',
         data: {
           'current_password': currentPassword,
           'new_password': newPassword,
@@ -110,7 +141,8 @@ class UserService {
         ),
       );
       if (response.statusCode != 200) {
-        throw Exception(response.data['message'] ?? 'Failed to change password');
+        throw Exception(
+            response.data['message'] ?? 'Failed to change password');
       }
     } on DioException catch (e) {
       throw _handleError(e);
@@ -126,7 +158,7 @@ class UserService {
 
     try {
       await _dio.post(
-        '/auth/logout', // Matches api/auth/logout
+        '/auth/logout',
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
     } on DioException catch (e) {
@@ -138,7 +170,6 @@ class UserService {
 
   String _handleError(DioException e) {
     if (e.response?.statusCode == 401) {
-      // Jika token tidak valid (401 Unauthorized), anggap ini sama dengan "No token found"
       return 'No token found';
     }
     if (e.response?.data != null) {
@@ -147,6 +178,17 @@ class UserService {
       }
       if (e.response?.data['error'] != null) {
         return e.response!.data['error'];
+      }
+      // Tangani error validasi Laravel
+      if (e.response?.data['errors'] != null) {
+        final errors = e.response!.data['errors'] as Map<String, dynamic>;
+        String errorMessage = '';
+        for (var field in errors.keys) {
+          if (errors[field] is List && errors[field].isNotEmpty) {
+            errorMessage += '${errors[field][0]}\n';
+          }
+        }
+        return errorMessage.trim();
       }
     }
     return e.message ?? 'An error occurred';
