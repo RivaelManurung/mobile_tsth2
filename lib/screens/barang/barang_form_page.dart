@@ -1,104 +1,98 @@
-// lib/screens/barang/barang_form_page.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:inventory_tsth2/controller/Barang/barang_controller.dart';
-import 'package:inventory_tsth2/widget/loading_indicator.dart';
-
 
 class BarangFormPage extends StatelessWidget {
   final BarangController _controller = Get.find();
+  final bool isEdit;
+  final int? barangId;
 
-  BarangFormPage({super.key});
+  BarangFormPage({this.isEdit = false, this.barangId, Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final isEdit = Get.arguments != null;
-    if (isEdit) {
-      _controller.getBarangById(Get.arguments as int);
+    if (isEdit && barangId != null) {
+      _controller.getBarangById(barangId!);
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isEdit ? 'Edit Item' : 'Add New Item'),
+        title: Text(isEdit ? 'Edit Barang' : 'Create Barang'),
       ),
       body: Obx(() {
-        if (isEdit && _controller.isLoading.value) {
-          return const LoadingIndicator();
+        if (_controller.isLoading.value) {
+          return const Center(child: CircularProgressIndicator());
         }
+        
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              TextFormField(
-                controller: _controller.namaController,
-                decoration: const InputDecoration(
-                  labelText: 'Item Name',
-                  border: OutlineInputBorder(),
+          child: Form(
+            child: Column(
+              children: [
+                TextFormField(
+                  controller: _controller.namaController,
+                  decoration: const InputDecoration(labelText: 'Nama Barang'),
+                  validator: (value) => value!.isEmpty ? 'Required' : null,
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter item name';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _controller.hargaController,
-                decoration: const InputDecoration(
-                  labelText: 'Price',
-                  border: OutlineInputBorder(),
-                  prefixText: '\$ ',
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _controller.hargaController,
+                  decoration: const InputDecoration(labelText: 'Harga'),
+                  keyboardType: TextInputType.number,
+                  validator: (value) => value!.isEmpty ? 'Required' : null,
                 ),
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter price';
-                  }
-                  if (int.tryParse(value) == null) {
-                    return 'Please enter a valid number';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _controller.stokController,
-                decoration: const InputDecoration(
-                  labelText: 'Available Stock',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter stock quantity';
-                  }
-                  if (int.tryParse(value) == null) {
-                    return 'Please enter a valid number';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
+                const SizedBox(height: 16),
+                // Add dropdowns for jenisbarang, satuan, and category
+                // Example for jenisbarang dropdown:
+                // DropdownButtonFormField<int>(
+                //   value: _controller.selectedJenisBarangId.value,
+                //   items: jenisBarangList.map((jenis) {
+                //     return DropdownMenuItem(
+                //       value: jenis.id,
+                //       child: Text(jenis.nama),
+                //     );
+                //   }).toList(),
+                //   onChanged: (value) => _controller.selectedJenisBarangId.value = value!,
+                //   decoration: InputDecoration(labelText: 'Jenis Barang'),
+                // ),
+                const SizedBox(height: 16),
+                // Image picker
+                if (_controller.imagePath.isNotEmpty)
+                  Image.network(_controller.imagePath.value),
+                ElevatedButton(
                   onPressed: () async {
-                    if (isEdit) {
-                      await _controller.updateBarang(Get.arguments as int);
-                    } else {
-                      await _controller.createBarang();
+                    final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
+                    if (pickedFile != null) {
+                      _controller.imagePath.value = pickedFile.path;
                     }
                   },
-                  child: _controller.isLoading.value
-                      ? const CircularProgressIndicator(
-                          color: Colors.white,
-                        )
-                      : Text(isEdit ? 'Update Item' : 'Save Item'),
+                  child: const Text('Pick Image'),
                 ),
-              ),
-            ],
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      if (isEdit) {
+                        _controller.updateBarang(barangId!);
+                      } else {
+                        _controller.createBarang();
+                      }
+                    },
+                    child: Text(isEdit ? 'Update' : 'Create'),
+                  ),
+                ),
+                if (_controller.errorMessage.value.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: Text(
+                      _controller.errorMessage.value,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ),
+              ],
+            ),
           ),
         );
       }),

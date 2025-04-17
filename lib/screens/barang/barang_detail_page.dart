@@ -1,116 +1,68 @@
-// lib/screens/barang/barang_detail_page.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:inventory_tsth2/controller/Barang/barang_controller.dart';
 import 'package:inventory_tsth2/screens/barang/barang_form_page.dart';
-import 'package:inventory_tsth2/widget/loading_indicator.dart';
 
 class BarangDetailPage extends StatelessWidget {
   final BarangController _controller = Get.find();
 
-  BarangDetailPage({super.key});
+  BarangDetailPage({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    int? barangId;
-    try {
-      if (Get.arguments != null) {
-        print('Get.arguments: ${Get.arguments}, Type: ${Get.arguments.runtimeType}');
-        if (Get.arguments is int) {
-          barangId = Get.arguments as int;
-        } else if (Get.arguments is String) {
-          barangId = int.parse(Get.arguments as String);
-        } else {
-          barangId = int.parse(Get.arguments.toString());
-        }
-      } else {
-        return Scaffold(
-          appBar: AppBar(title: const Text('Error')),
-          body: const Center(child: Text('No item ID provided')),
-        );
-      }
-    } catch (e) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Error')),
-        body: Center(child: Text('Invalid item ID: $e')),
-      );
-    }
-
+    final barangId = Get.arguments as int;
     _controller.getBarangById(barangId);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Item Details'),
+        title: const Text('Detail Barang'),
         actions: [
           IconButton(
             icon: const Icon(Icons.edit),
-            onPressed: () {
-              _controller.namaController.text =
-                  _controller.selectedBarang.value?.barangNama ?? '';
-              _controller.hargaController.text =
-                  _controller.selectedBarang.value?.barangHarga.toString() ?? '';
-              _controller.stokController.text =
-                  _controller.selectedBarang.value?.stokTersedia.toString() ?? '';
-              Get.to(() => BarangFormPage(), arguments: barangId);
-            },
+            onPressed: () => Get.to(
+              () => BarangFormPage(isEdit: true, barangId: barangId),
+            ),
           ),
           IconButton(
             icon: const Icon(Icons.delete),
-            onPressed: () async {
-              final confirmed = await Get.dialog(
-                AlertDialog(
-                  title: const Text('Confirm Delete'),
-                  content: const Text('Are you sure you want to delete this item?'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Get.back(result: false),
-                      child: const Text('Cancel'),
-                    ),
-                    TextButton(
-                      onPressed: () => Get.back(result: true),
-                      child: const Text('Delete'),
-                    ),
-                  ],
-                ),
-              );
-              if (confirmed == true) {
-                await _controller.deleteBarang(barangId!);
-              }
-            },
+            onPressed: () => _showDeleteDialog(context, barangId),
           ),
         ],
       ),
       body: Obx(() {
-        if (_controller.isLoading.value) {
-          return const LoadingIndicator();
+        final barang = _controller.selectedBarang.value;
+        if (barang == null) {
+          return const Center(child: CircularProgressIndicator());
         }
-        if (_controller.selectedBarang.value == null) {
-          return const Center(child: Text('Item not found'));
-        }
-        final barang = _controller.selectedBarang.value!;
-        return SingleChildScrollView(
+
+        return Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(
-                child: CircleAvatar(
-                  radius: 60,
-                  backgroundColor: Colors.blue[100],
-                  child: Text(
-                    barang.barangNama.substring(0, 1).toUpperCase(),
-                    style: const TextStyle(fontSize: 40, color: Colors.blue),
+              if (barang.barangGambar != null)
+                Center(
+                  child: Image.network(
+                    barang.barangGambar!,
+                    height: 200,
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              _buildDetailRow('Code', barang.barangKode),
-              _buildDetailRow('Name', barang.barangNama),
-              _buildDetailRow('Price', '\$${barang.barangHarga.toStringAsFixed(2)}'),
-              _buildDetailRow('Available Stock', barang.stokTersedia.toString()),
-              _buildDetailRow('Slug', barang.barangSlug),
-              _buildDetailRow('Created At',
-                  '${barang.createdAt.day}/${barang.createdAt.month}/${barang.createdAt.year}'),
+              const SizedBox(height: 16),
+              Text('Nama: ${barang.barangNama}', style: const TextStyle(fontSize: 18)),
+              const SizedBox(height: 8),
+              Text('Kode: ${barang.barangKode}'),
+              const SizedBox(height: 8),
+              Text('Harga: Rp ${barang.barangHarga}'),
+              const SizedBox(height: 8),
+              Text('Jenis Barang ID: ${barang.jenisbarangId}'),
+              const SizedBox(height: 8),
+              Text('Satuan ID: ${barang.satuanId}'),
+              const SizedBox(height: 8),
+              Text('Kategori ID: ${barang.barangcategoryId}'),
+              const SizedBox(height: 8),
+              Text('Dibuat: ${barang.createdAt}'),
+              const SizedBox(height: 8),
+              Text('Diupdate: ${barang.updatedAt}'),
             ],
           ),
         );
@@ -118,25 +70,24 @@ class BarangDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              label,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
+  void _showDeleteDialog(BuildContext context, int id) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hapus Barang'),
+        content: const Text('Anda yakin ingin menghapus barang ini?'),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Batal'),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontSize: 16),
-            ),
+          TextButton(
+            onPressed: () {
+              _controller.deleteBarang(id);
+              Get.back();
+              Get.back();
+            },
+            child: const Text('Hapus', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),

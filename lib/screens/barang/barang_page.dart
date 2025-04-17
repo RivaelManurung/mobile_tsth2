@@ -1,214 +1,137 @@
-// lib/screens/barang/barang_list_page.dart
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
 import 'package:inventory_tsth2/controller/Barang/barang_controller.dart';
-import 'package:inventory_tsth2/core/routes/routes_name.dart';
-import 'package:inventory_tsth2/screens/barang/barang_detail_page.dart';
 import 'package:inventory_tsth2/screens/barang/barang_form_page.dart';
-import 'package:pull_to_refresh_flutter3/pull_to_refresh_flutter3.dart';
 
 class BarangListPage extends StatelessWidget {
   final BarangController _controller = Get.put(BarangController());
-  final RefreshController _refreshController = RefreshController();
 
-  BarangListPage({super.key});
+  BarangListPage({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFF),
       appBar: AppBar(
-        title: const Text(
-          'Item Management',
-          style: TextStyle(
-            color: Color(0xFF1A1D1F),
-            fontWeight: FontWeight.w700,
-            fontSize: 20,
-          ),
-        ),
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
+        title: const Text('Barang Management'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, color: Color(0xFF4E6AFF)),
-            onPressed: () => _refreshData(),
+            icon: const Icon(Icons.add),
+            onPressed: () => Get.to(() => BarangFormPage()),
           ),
         ],
       ),
-      body: SmartRefresher(
-        controller: _refreshController,
-        onRefresh: _refreshData,
-        header: const ClassicHeader(
-          idleText: 'Pull to refresh',
-          releaseText: 'Release to refresh',
-          refreshingText: 'Refreshing...',
-          completeText: 'Refresh complete',
-          failedText: 'Refresh failed',
-          textStyle: TextStyle(color: Color(0xFF6F767E)),
-        ),
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.03),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: TextField(
-                  controller: _controller.searchController,
-                  decoration: const InputDecoration(
-                    hintText: 'Search items...',
-                    hintStyle: TextStyle(color: Color(0xFF6F767E)),
-                    prefixIcon: Icon(Icons.search, color: Color(0xFF6F767E)),
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 16),
-                  ),
-                  onChanged: (value) => _controller.update(),
-                ),
-              ),
+      body: Obx(() {
+        if (_controller.isLoading.value) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (_controller.selectedBarang.value != null) {
+          return _buildDetailView();
+        }
+
+        return _buildListView();
+      }),
+    );
+  }
+
+  Widget _buildListView() {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: TextField(
+            controller: _controller.searchController,
+            decoration: const InputDecoration(
+              labelText: 'Search',
+              prefixIcon: Icon(Icons.search),
+              border: OutlineInputBorder(),
             ),
-            Expanded(
-              child: Obx(() {
-                if (_controller.isLoading.value) {
-                  return const Center(
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation(Color(0xFF4E6AFF)),
-                    ),
-                  );
-                }
-                if (_controller.errorMessage.value.isNotEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          _controller.errorMessage.value,
-                          style: const TextStyle(color: Colors.red),
-                          textAlign: TextAlign.center,
-                        ),
-                        if (_controller.errorMessage.value.contains('No token found'))
-                          Padding(
-                            padding: const EdgeInsets.only(top: 16.0),
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF4E6AFF),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              onPressed: () => Get.offAllNamed(RoutesName.login),
-                              child: const Text('Go to Login'),
-                            ),
-                          ),
-                      ],
-                    ),
-                  );
-                }
-                if (_controller.filteredBarang.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'No items found',
-                      style: TextStyle(
-                        color: Color(0xFF6F767E),
-                        fontSize: 16,
-                      ),
-                    ),
-                  );
-                }
-                return ListView.builder(
-                  itemCount: _controller.filteredBarang.length,
-                  itemBuilder: (context, index) {
-                    final barang = _controller.filteredBarang[index];
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.03),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          leading: Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF4E6AFF).withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Center(
-                              child: Text(
-                                barang.barangNama.substring(0, 1).toUpperCase(),
-                                style: const TextStyle(
-                                  color: Color(0xFF4E6AFF),
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                          title: Text(
-                            barang.barangNama,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF1A1D1F),
-                            ),
-                          ),
-                          subtitle: Text(
-                            'Stock: ${barang.stokTersedia} | Price: \$${barang.barangHarga}',
-                            style: const TextStyle(color: Color(0xFF6F767E)),
-                          ),
-                          trailing: const Icon(
-                            Icons.arrow_forward_ios,
-                            size: 16,
-                            color: Color(0xFF6F767E),
-                          ),
-                          onTap: () {
-                            Get.to(() => BarangDetailPage(), arguments: barang.id);
-                          },
-                        ),
-                      ),
-                    ).animate().fadeIn(delay: (index * 50).ms);
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            itemCount: _controller.filteredBarang.length,
+            itemBuilder: (context, index) {
+              final barang = _controller.filteredBarang[index];
+              return Card(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: ListTile(
+                  title: Text(barang.barangNama),
+                  subtitle: Text('Kode: ${barang.barangKode} - Harga: Rp${barang.barangHarga}'),
+                  trailing: const Icon(Icons.arrow_forward),
+                  onTap: () {
+                    _controller.getBarangById(barang.id);
                   },
-                );
-              }),
-            ),
-          ],
+                ),
+              );
+            },
+          ),
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color(0xFF4E6AFF),
-        onPressed: () {
-          _controller.clearForm();
-          Get.to(() => BarangFormPage());
-        },
-        child: const Icon(Icons.add, color: Colors.white),
+      ],
+    );
+  }
+
+  Widget _buildDetailView() {
+    final barang = _controller.selectedBarang.value!;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                barang.barangNama,
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => _controller.selectedBarang.value = null,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text('Kode: ${barang.barangKode}'),
+          const SizedBox(height: 8),
+          Text('Harga: Rp${barang.barangHarga}'),
+          const SizedBox(height: 8),
+          Text('Jenis Barang ID: ${barang.jenisbarangId}'),
+          const SizedBox(height: 8),
+          Text('Satuan ID: ${barang.satuanId}'),
+          const SizedBox(height: 8),
+          Text('Kategori ID: ${barang.barangcategoryId}'),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              ElevatedButton(
+                onPressed: () => Get.to(() => BarangFormPage(isEdit: true, barangId: barang.id)),
+                child: const Text('Edit'),
+              ),
+              ElevatedButton(
+                onPressed: () => _showDeleteDialog(barang.id),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  Future<void> _refreshData() async {
-    try {
-      await _controller.fetchAllBarang();
-      _refreshController.refreshCompleted();
-    } catch (e) {
-      _refreshController.refreshFailed();
-    }
+  void _showDeleteDialog(int id) {
+    Get.defaultDialog(
+      title: 'Delete Barang',
+      middleText: 'Are you sure you want to delete this item?',
+      textConfirm: 'Delete',
+      textCancel: 'Cancel',
+      confirmTextColor: Colors.white,
+      onConfirm: () {
+        _controller.deleteBarang(id);
+        Get.back();
+      },
+    );
   }
 }

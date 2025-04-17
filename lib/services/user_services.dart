@@ -193,4 +193,36 @@ class UserService {
     }
     return e.message ?? 'An error occurred';
   }
+  // Tambahkan di lib/services/user_service.dart, di dalam kelas UserService
+
+// Method untuk menghapus avatar
+  Future<User> deleteAvatar(int userId) async {
+    final token = await _getToken();
+    if (token == null) throw Exception('No token found');
+
+    try {
+      final response = await _dio.delete(
+        '/users/$userId/avatar',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+          },
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        return User.fromJson(response.data['data']);
+      } else {
+        throw Exception(response.data['message'] ?? 'Failed to delete avatar');
+      }
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+// Method untuk mendapatkan URL foto
+  String getPhotoUrl(String? photoUrl) {
+    if (photoUrl == null || photoUrl.isEmpty) return '';
+    return '$baseUrl/storage/$photoUrl';
+  }
 }

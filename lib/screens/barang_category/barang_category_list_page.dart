@@ -375,7 +375,7 @@ class BarangCategoryListPage extends StatelessWidget {
 
             const SizedBox(height: 24),
 
-            // Tombol Aksi
+            // Tombol Aksi  
             _buildTombolAksi(
               icon: Icons.edit,
               label: 'Ubah Kategori',
