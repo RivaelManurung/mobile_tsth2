@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:inventory_tsth2/Model/barang_model.dart';
 import 'package:inventory_tsth2/core/routes/routes_name.dart';
 import 'package:inventory_tsth2/services/barang_service.dart';
@@ -14,7 +15,6 @@ class BarangController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxString errorMessage = ''.obs;
   final RxString searchQuery = ''.obs;
-  var imagePath = ''.obs;
 
   // Form controllers
   final TextEditingController namaController = TextEditingController();
@@ -26,6 +26,7 @@ class BarangController extends GetxController {
   final RxInt selectedJenisBarangId = 0.obs;
   final RxInt selectedSatuanId = 0.obs;
   final RxInt selectedCategoryId = 0.obs;
+  final RxString imagePath = ''.obs;
 
   BarangController({BarangService? service})
       : _service = service ?? BarangService();
@@ -57,18 +58,14 @@ class BarangController extends GetxController {
 
   Future<void> fetchAllBarang() async {
     try {
-      print('Fetching barang...'); // Debug log
       isLoading(true);
       errorMessage('');
       final barang = await _service.getAllBarang();
       barangList.assignAll(barang);
       filterBarang();
-      print('Barang fetched successfully'); // Debug log
     } catch (e) {
-      print('Error fetching barang: $e'); // Debug log
       errorMessage(e.toString());
-      if (errorMessage.value.contains('No token found')) {
-        print('Redirecting to login...'); // Debug log
+      if (errorMessage.value.contains('Unauthenticated')) {
         Get.offAllNamed(RoutesName.login);
       }
     } finally {
@@ -82,7 +79,7 @@ class BarangController extends GetxController {
       errorMessage('');
       final barang = await _service.getBarangById(id);
       selectedBarang(barang);
-
+      
       // Pre-fill form for editing
       namaController.text = barang.barangNama;
       hargaController.text = barang.barangHarga.toString();
@@ -90,13 +87,22 @@ class BarangController extends GetxController {
       selectedJenisBarangId(barang.jenisbarangId ?? 0);
       selectedSatuanId(barang.satuanId ?? 0);
       selectedCategoryId(barang.barangcategoryId ?? 0);
+      imagePath(barang.barangGambar ?? '');
     } catch (e) {
       errorMessage(e.toString());
-      if (errorMessage.value.contains('No token found')) {
-        Get.offAllNamed(RoutesName.login);
-      }
     } finally {
       isLoading(false);
+    }
+  }
+
+  Future<void> pickImage() async {
+    try {
+      final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
+      if (pickedFile != null) {
+        imagePath.value = pickedFile.path;
+      }
+    } catch (e) {
+      errorMessage('Failed to pick image: $e');
     }
   }
 
@@ -104,38 +110,30 @@ class BarangController extends GetxController {
     try {
       isLoading(true);
       errorMessage('');
-      final data = {
-        'barang_nama': namaController.text.trim(),
-        'barang_harga': hargaController.text.trim(),
-        'barang_kode': kodeController.text.trim(),
-        'jenisbarang_id': selectedJenisBarangId.value,
-        'satuan_id': selectedSatuanId.value,
-        'barangcategory_id': selectedCategoryId.value,
-      };
+      
       final barang = Barang(
-        id: 0, // Provide a default or appropriate value for 'id'
-        barangSlug:
-            '', // Provide a default or appropriate value for 'barangSlug'
-        createdAt: DateTime
-            .now(), // Provide a default or appropriate value for 'createdAt'
-        updatedAt: DateTime
-            .now(), // Provide a default or appropriate value for 'updatedAt'
-        barangNama: data['barang_nama'] as String,
-        barangHarga: double.parse(data['barang_harga'] as String),
-        barangKode: data['barang_kode'] as String,
-        jenisbarangId: data['jenisbarang_id'] as int,
-        satuanId: data['satuan_id'] as int,
-        barangcategoryId: data['barangcategory_id'] as int,
+        id: 0,
+        barangNama: namaController.text.trim(),
+        barangSlug: '',
+        barangHarga: double.parse(hargaController.text),
+        barangGambar: imagePath.value,
+        barangKode: kodeController.text.trim(),
+        jenisbarangId: selectedJenisBarangId.value,
+        satuanId: selectedSatuanId.value,
+        barangcategoryId: selectedCategoryId.value,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
       );
+
       final newBarang = await _service.createBarang(barang);
       barangList.add(newBarang);
       filterBarang();
+      
       Get.back();
-      Get.snackbar('Success', 'Barang created successfully',
-          snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('Success', 'Barang created successfully');
     } catch (e) {
       errorMessage(e.toString());
-      Get.snackbar('Error', e.toString(), snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('Error', e.toString());
     } finally {
       isLoading(false);
     }
@@ -145,39 +143,32 @@ class BarangController extends GetxController {
     try {
       isLoading(true);
       errorMessage('');
-      final data = {
-        'barang_nama': namaController.text.trim(),
-        'barang_harga': hargaController.text.trim(),
-        'barang_kode': kodeController.text.trim(),
-        'jenisbarang_id': selectedJenisBarangId.value,
-        'satuan_id': selectedSatuanId.value,
-        'barangcategory_id': selectedCategoryId.value,
-      };
-      final barangToUpdate = Barang(
+      
+      final barang = Barang(
         id: id,
-        barangSlug: selectedBarang.value?.barangSlug ?? '',
-        createdAt: selectedBarang.value?.createdAt ?? DateTime.now(),
+        barangNama: namaController.text.trim(),
+        barangSlug: '',
+        barangHarga: double.parse(hargaController.text),
+        barangGambar: imagePath.value,
+        barangKode: kodeController.text.trim(),
+        jenisbarangId: selectedJenisBarangId.value,
+        satuanId: selectedSatuanId.value,
+        barangcategoryId: selectedCategoryId.value,
+        createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
-        barangNama: data['barang_nama'] as String,
-        barangHarga: double.parse(data['barang_harga'] as String),
-        barangKode: data['barang_kode'] as String,
-        jenisbarangId: data['jenisbarang_id'] as int,
-        satuanId: data['satuan_id'] as int,
-        barangcategoryId: data['barangcategory_id'] as int,
       );
-      final updatedBarang = await _service.updateBarang(id, barangToUpdate);
+
+      final updatedBarang = await _service.updateBarang(id, barang);
       final index = barangList.indexWhere((item) => item.id == id);
       if (index != -1) {
         barangList[index] = updatedBarang;
-        filterBarang();
       }
-      selectedBarang(updatedBarang);
+      
       Get.back();
-      Get.snackbar('Success', 'Barang updated successfully',
-          snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('Success', 'Barang updated successfully');
     } catch (e) {
       errorMessage(e.toString());
-      Get.snackbar('Error', e.toString(), snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('Error', e.toString());
     } finally {
       isLoading(false);
     }
@@ -187,62 +178,20 @@ class BarangController extends GetxController {
     try {
       isLoading(true);
       errorMessage('');
-      final success = await _service.deleteBarang(id);
-      if (success) {
-        barangList.removeWhere((item) => item.id == id);
-        filterBarang();
-        Get.back();
-        Get.snackbar('Success', 'Barang deleted successfully',
-            snackPosition: SnackPosition.BOTTOM);
-      }
+      
+      await _service.deleteBarang(id);
+      barangList.removeWhere((item) => item.id == id);
+      filterBarang();
+      
+      Get.back();
+      Get.snackbar('Success', 'Barang deleted successfully');
     } catch (e) {
       errorMessage(e.toString());
-      Get.snackbar('Error', e.toString(), snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('Error', e.toString());
     } finally {
       isLoading(false);
     }
   }
-
-  // Future<void> restoreBarang(int id) async {
-  //   try {
-  //     isLoading(true);
-  //     errorMessage('');
-  //     final restoredBarang = await _service.restoreBarang(id);
-  //     final index = barangList.indexWhere((item) => item.id == id);
-  //     if (index != -1) {
-  //       barangList[index] = restoredBarang;
-  //       filterBarang();
-  //     }
-  //     selectedBarang(restoredBarang);
-  //     Get.snackbar('Success', 'Barang restored successfully',
-  //         snackPosition: SnackPosition.BOTTOM);
-  //   } catch (e) {
-  //     errorMessage(e.toString());
-  //     Get.snackbar('Error', e.toString(), snackPosition: SnackPosition.BOTTOM);
-  //   } finally {
-  //     isLoading(false);
-  //   }
-  // }
-
-  // Future<void> forceDeleteBarang(int id) async {
-  //   try {
-  //     isLoading(true);
-  //     errorMessage('');
-  //     final success = await _service.forceDeleteBarang(id);
-  //     if (success) {
-  //       barangList.removeWhere((item) => item.id == id);
-  //       filterBarang();
-  //       Get.back();
-  //       Get.snackbar('Success', 'Barang permanently deleted',
-  //           snackPosition: SnackPosition.BOTTOM);
-  //     }
-  //   } catch (e) {
-  //     errorMessage(e.toString());
-  //     Get.snackbar('Error', e.toString(), snackPosition: SnackPosition.BOTTOM);
-  //   } finally {
-  //     isLoading(false);
-  //   }
-  // }
 
   void filterBarang() {
     final query = searchQuery.value.toLowerCase();
@@ -250,9 +199,10 @@ class BarangController extends GetxController {
       filteredBarang.assignAll(barangList);
     } else {
       filteredBarang.assignAll(
-        barangList.where((item) =>
-            item.barangNama.toLowerCase().contains(query) ||
-            item.barangKode.toLowerCase().contains(query)),
+        barangList.where((item) => 
+          item.barangNama.toLowerCase().contains(query) ||
+          item.barangKode.toLowerCase().contains(query)
+        ),
       );
     }
   }
@@ -262,11 +212,11 @@ class BarangController extends GetxController {
     hargaController.clear();
     kodeController.clear();
     searchController.clear();
-    searchQuery.value = '';
-    errorMessage('');
-    selectedBarang(null);
     selectedJenisBarangId(0);
     selectedSatuanId(0);
     selectedCategoryId(0);
+    imagePath('');
+    errorMessage('');
+    selectedBarang(null);
   }
 }

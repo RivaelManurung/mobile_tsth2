@@ -1,6 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:inventory_tsth2/controller/Barang/barang_controller.dart';
 
 class BarangFormPage extends StatelessWidget {
@@ -8,14 +9,16 @@ class BarangFormPage extends StatelessWidget {
   final bool isEdit;
   final int? barangId;
 
-  BarangFormPage({this.isEdit = false, this.barangId, Key? key}) : super(key: key);
+  BarangFormPage({this.isEdit = false, this.barangId, Key? key}) : super(key: key) {
+    if (isEdit && barangId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _controller.getBarangById(barangId!);
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (isEdit && barangId != null) {
-      _controller.getBarangById(barangId!);
-    }
-
     return Scaffold(
       appBar: AppBar(
         title: Text(isEdit ? 'Edit Barang' : 'Create Barang'),
@@ -43,33 +46,28 @@ class BarangFormPage extends StatelessWidget {
                   validator: (value) => value!.isEmpty ? 'Required' : null,
                 ),
                 const SizedBox(height: 16),
-                // Add dropdowns for jenisbarang, satuan, and category
-                // Example for jenisbarang dropdown:
-                // DropdownButtonFormField<int>(
-                //   value: _controller.selectedJenisBarangId.value,
-                //   items: jenisBarangList.map((jenis) {
-                //     return DropdownMenuItem(
-                //       value: jenis.id,
-                //       child: Text(jenis.nama),
-                //     );
-                //   }).toList(),
-                //   onChanged: (value) => _controller.selectedJenisBarangId.value = value!,
-                //   decoration: InputDecoration(labelText: 'Jenis Barang'),
-                // ),
+                TextFormField(
+                  controller: _controller.kodeController,
+                  decoration: const InputDecoration(labelText: 'Kode Barang'),
+                  validator: (value) => value!.isEmpty ? 'Required' : null,
+                ),
                 const SizedBox(height: 16),
-                // Image picker
+                
+                // Image Picker
                 if (_controller.imagePath.isNotEmpty)
-                  Image.network(_controller.imagePath.value),
+                  Image.file(
+                    File(_controller.imagePath.value),
+                    height: 150,
+                    width: 150,
+                    fit: BoxFit.cover,
+                  ),
                 ElevatedButton(
-                  onPressed: () async {
-                    final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
-                    if (pickedFile != null) {
-                      _controller.imagePath.value = pickedFile.path;
-                    }
-                  },
+                  onPressed: _controller.pickImage,
                   child: const Text('Pick Image'),
                 ),
                 const SizedBox(height: 24),
+                
+                // Submit Button
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
@@ -83,6 +81,8 @@ class BarangFormPage extends StatelessWidget {
                     child: Text(isEdit ? 'Update' : 'Create'),
                   ),
                 ),
+                
+                // Error Message
                 if (_controller.errorMessage.value.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 16),

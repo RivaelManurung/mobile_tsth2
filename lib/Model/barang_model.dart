@@ -45,6 +45,7 @@ class Barang {
     return {
       'barang_nama': barangNama,
       'barang_harga': barangHarga,
+      'barang_kode': barangKode,
       'jenisbarang_id': jenisbarangId,
       'satuan_id': satuanId,
       'barangcategory_id': barangcategoryId,

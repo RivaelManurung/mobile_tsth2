@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:inventory_tsth2/controller/Barang/barang_controller.dart';
@@ -16,7 +17,10 @@ class BarangListPage extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            onPressed: () => Get.to(() => BarangFormPage()),
+            onPressed: () {
+              _controller.clearForm();
+              Get.to(() => BarangFormPage());
+            },
           ),
         ],
       ),
@@ -56,12 +60,11 @@ class BarangListPage extends StatelessWidget {
               return Card(
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: ListTile(
+                  leading: _buildItemImage(barang.barangGambar),
                   title: Text(barang.barangNama),
                   subtitle: Text('Kode: ${barang.barangKode} - Harga: Rp${barang.barangHarga}'),
                   trailing: const Icon(Icons.arrow_forward),
-                  onTap: () {
-                    _controller.getBarangById(barang.id);
-                  },
+                  onTap: () => _controller.getBarangById(barang.id),
                 ),
               );
             },
@@ -92,6 +95,13 @@ class BarangListPage extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
+          
+          // Item Image
+          Center(
+            child: _buildDetailImage(barang.barangGambar),
+          ),
+          
+          const SizedBox(height: 16),
           Text('Kode: ${barang.barangKode}'),
           const SizedBox(height: 8),
           Text('Harga: Rp${barang.barangHarga}'),
@@ -118,6 +128,39 @@ class BarangListPage extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildItemImage(String? imageUrl) {
+    if (imageUrl == null || imageUrl.isEmpty) {
+      return const Icon(Icons.inventory, size: 40);
+    }
+    return CachedNetworkImage(
+      imageUrl: imageUrl,
+      width: 40,
+      height: 40,
+      fit: BoxFit.cover,
+      placeholder: (context, url) => const CircularProgressIndicator(),
+      errorWidget: (context, url, error) => const Icon(Icons.broken_image),
+    );
+  }
+
+  Widget _buildDetailImage(String? imageUrl) {
+    if (imageUrl == null || imageUrl.isEmpty) {
+      return const Column(
+        children: [
+          Icon(Icons.inventory, size: 100),
+          Text('No Image Available'),
+        ],
+      );
+    }
+    return CachedNetworkImage(
+      imageUrl: imageUrl,
+      width: 200,
+      height: 200,
+      fit: BoxFit.contain,
+      placeholder: (context, url) => const CircularProgressIndicator(),
+      errorWidget: (context, url, error) => const Icon(Icons.broken_image, size: 100),
     );
   }
 
