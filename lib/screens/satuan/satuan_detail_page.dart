@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
-import 'package:inventory_tsth2/controller/Satuan/satuan_controller.dart';
+import 'package:inventory_tsth2/controller/satuan_controller.dart';
 import 'package:inventory_tsth2/core/routes/routes_name.dart';
 import 'package:inventory_tsth2/screens/satuan/satuan_form_page.dart';
 

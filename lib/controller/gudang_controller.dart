@@ -1,7 +1,9 @@
+// lib/controller/gudang_controller.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:inventory_tsth2/Model/gudang_model.dart';
 import 'package:inventory_tsth2/Model/user_model.dart';
+import 'package:inventory_tsth2/Model/barang_gudang_model.dart';
 import 'package:inventory_tsth2/core/routes/routes_name.dart';
 import 'package:inventory_tsth2/services/gudang_service.dart';
 import 'package:inventory_tsth2/services/user_services.dart';
@@ -17,8 +19,9 @@ class GudangController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxString errorMessage = ''.obs;
   final RxString searchQuery = ''.obs;
-  final RxList<User> userList = <User>[].obs; // Daftar pengguna
-  final Rx<User?> selectedUser = Rx<User?>(null); // Pengguna yang dipilih untuk form
+  final RxList<User> userList = <User>[].obs;
+  final Rx<User?> selectedUser = Rx<User?>(null);
+  final RxList<BarangGudang> stockList = <BarangGudang>[].obs;
 
   // Form controllers
   final TextEditingController nameController = TextEditingController();
@@ -35,7 +38,7 @@ class GudangController extends GetxController {
   void onInit() {
     super.onInit();
     fetchAllGudang();
-    fetchAllUsers(); // Ambil daftar pengguna
+    fetchAllUsers();
     _setupSearchListener();
   }
 
@@ -85,6 +88,10 @@ class GudangController extends GetxController {
       final gudang = await _service.getAllGudang();
       gudangList.assignAll(gudang);
       filterGudang();
+      // Fetch stock data for all warehouses
+      for (var g in gudang) {
+        await fetchStockByGudang(g.id);
+      }
       print('Gudang fetched successfully');
     } catch (e) {
       print('Error fetching gudang: $e');
@@ -98,18 +105,41 @@ class GudangController extends GetxController {
     }
   }
 
+  Future<void> fetchStockByGudang(int gudangId) async {
+    try {
+      print('Fetching stock for gudang $gudangId...');
+      final stock = await _service.getStockByGudang(gudangId);
+      stockList.removeWhere((item) => item.gudangId == gudangId);
+      stockList.addAll(stock);
+      print('Stock fetched successfully for gudang $gudangId');
+    } catch (e) {
+      print('Error fetching stock for gudang $gudangId: $e');
+      Get.snackbar(
+        'Gagal',
+        'Gagal memuat data stok: $e',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(16),
+        borderRadius: 12,
+        duration: const Duration(seconds: 3),
+      );
+    }
+  }
+
   Future<void> getGudangById(int id) async {
     try {
       isLoading(true);
       errorMessage('');
       final gudang = await _service.getGudangById(id);
       selectedGudang(gudang);
-      // Set selectedUser berdasarkan user_id dari gudang
       if (gudang.userId != null) {
         selectedUser.value = userList.firstWhereOrNull((user) => user.id == gudang.userId);
       } else {
         selectedUser.value = null;
       }
+      // Fetch stock data for the selected warehouse
+      await fetchStockByGudang(id);
     } catch (e) {
       print('Error fetching gudang by id: $e');
       errorMessage(e.toString());
@@ -125,7 +155,6 @@ class GudangController extends GetxController {
     try {
       isLoading(true);
 
-      // Validasi input
       final name = nameController.text.trim();
       if (name.isEmpty) {
         throw Exception('Nama gudang tidak boleh kosong');
@@ -179,7 +208,6 @@ class GudangController extends GetxController {
     try {
       isLoading(true);
 
-      // Validasi input
       final name = nameController.text.trim();
       if (name.isEmpty) {
         throw Exception('Nama gudang tidak boleh kosong');
@@ -199,7 +227,6 @@ class GudangController extends GetxController {
 
       final success = await _service.updateGudang(id, data);
       if (success) {
-        // Ambil ulang data terbaru dari server
         final updatedGudang = await _service.getGudangById(id);
         final index = gudangList.indexWhere((item) => item.id == id);
         if (index != -1) {
@@ -244,6 +271,7 @@ class GudangController extends GetxController {
       final success = await _service.deleteGudang(id);
       if (success) {
         gudangList.removeWhere((item) => item.id == id);
+        stockList.removeWhere((item) => item.gudangId == id);
         filterGudang();
         clearForm();
         Get.snackbar(
@@ -288,13 +316,22 @@ class GudangController extends GetxController {
     }
   }
 
+  Map<String, int> getStockSummary(int gudangId) {
+    final stock = stockList.where((item) => item.gudangId == gudangId).toList();
+    return {
+      'stok_tersedia': stock.fold(0, (sum, item) => sum + item.stokTersedia),
+      'stok_dipinjam': stock.fold(0, (sum, item) => sum + item.stokDipinjam),
+      'stok_maintenance': stock.fold(0, (sum, item) => sum + item.stokMaintenance),
+    };
+  }
+
   void clearForm() {
     nameController.clear();
     descriptionController.clear();
     searchController.clear();
     searchQuery.value = '';
     selectedGudang(null);
-    selectedUser(null); // Reset pengguna yang dipilih
+    selectedUser(null);
   }
 
   void resetErrorForListPage() {

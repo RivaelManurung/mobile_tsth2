@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:inventory_tsth2/Model/barang_model.dart';
+import 'package:inventory_tsth2/config/api.dart';
 import 'package:inventory_tsth2/services/auth_service.dart';
 
 class BarangService {
@@ -13,7 +14,7 @@ class BarangService {
     FlutterSecureStorage? storage,
     AuthService? authService,
   })  : _dio = dio ?? Dio(BaseOptions(
-          baseUrl: 'http://127.0.0.1:8000/api',
+          baseUrl: baseUrl,
           headers: {'Accept': 'application/json'},
         )),
         _storage = storage ?? const FlutterSecureStorage(),

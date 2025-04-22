@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
 import 'package:inventory_tsth2/controller/Auth/auth_controller.dart';
-import 'package:inventory_tsth2/controller/Gudang/gudang_controller.dart';
+import 'package:inventory_tsth2/controller/gudang_controller.dart';
 import 'package:inventory_tsth2/core/routes/routes_name.dart';
 import 'package:inventory_tsth2/screens/gudang/gudang_form_page.dart';
 import 'package:pull_to_refresh_flutter3/pull_to_refresh_flutter3.dart';
@@ -14,7 +14,6 @@ class GudangListPage extends StatelessWidget {
   final GudangController _controller = Get.put(GudangController());
   final AuthController _authController = Get.find<AuthController>();
   final RefreshController _refreshController = RefreshController();
-
   final RxnInt _selectedGudangId = RxnInt();
 
   void _showSnackbar(String title, String message, {required bool isSuccess}) {
@@ -62,8 +61,7 @@ class GudangListPage extends StatelessWidget {
               )
             : IconButton(
                 icon: const Icon(Icons.arrow_back, color: Color(0xFF0066FF)),
-                onPressed: () => Get.offNamed(RoutesName
-                    .dashboard), // Ganti Get.back() dengan navigasi ke Dashboard
+                onPressed: () => Get.offNamed(RoutesName.dashboard),
               )),
         actions: [
           if (_selectedGudangId.value == null)
@@ -106,7 +104,7 @@ class GudangListPage extends StatelessWidget {
                     isSuccess: result['success'],
                   );
                   if (result['success']) {
-                    await _controller.fetchAllGudang(); // Refresh daftar gudang
+                    await _controller.fetchAllGudang();
                   }
                 }
               },
@@ -206,6 +204,7 @@ class GudangListPage extends StatelessWidget {
               itemCount: _controller.filteredGudang.length,
               itemBuilder: (context, index) {
                 final gudang = _controller.filteredGudang[index];
+                final stockSummary = _controller.getStockSummary(gudang.id);
                 return Padding(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -246,7 +245,7 @@ class GudangListPage extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Tersedia: ${gudang.stokTersedia} | Dipinjam: ${gudang.stokDipinjam} | Maintenance: ${gudang.stokMaintenance}',
+                            'Tersedia: ${stockSummary['stok_tersedia']} | Dipinjam: ${stockSummary['stok_dipinjam']} | Maintenance: ${stockSummary['stok_maintenance']}',
                             style: const TextStyle(
                               color: Color(0xFF6F767E),
                               fontSize: 12,
@@ -329,12 +328,13 @@ class GudangListPage extends StatelessWidget {
         );
       }
 
+      final stockSummary = _controller.getStockSummary(gudangId);
+
       return SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header Card dengan Gradien
             Card(
               elevation: 4,
               shape: RoundedRectangleBorder(
@@ -397,7 +397,6 @@ class GudangListPage extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            // Informasi Gudang
             Card(
               elevation: 3,
               shape: RoundedRectangleBorder(
@@ -408,7 +407,6 @@ class GudangListPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Operator
                     const Text(
                       'Operator',
                       style: TextStyle(
@@ -453,7 +451,6 @@ class GudangListPage extends StatelessWidget {
                     ),
                     const Divider(height: 24),
 
-                    // Stok
                     const Text(
                       'Stok',
                       style: TextStyle(
@@ -472,7 +469,7 @@ class GudangListPage extends StatelessWidget {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          'Tersedia: ${gudang.stokTersedia}',
+                          'Tersedia: ${stockSummary['stok_tersedia']}',
                           style: const TextStyle(
                             color: Color(0xFF1A1D1F),
                             fontSize: 14,
@@ -490,7 +487,7 @@ class GudangListPage extends StatelessWidget {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          'Dipinjam: ${gudang.stokDipinjam}',
+                          'Dipinjam: ${stockSummary['stok_dipinjam']}',
                           style: const TextStyle(
                             color: Color(0xFF1A1D1F),
                             fontSize: 14,
@@ -508,7 +505,7 @@ class GudangListPage extends StatelessWidget {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          'Maintenance: ${gudang.stokMaintenance}',
+                          'Maintenance: ${stockSummary['stok_maintenance']}',
                           style: const TextStyle(
                             color: Color(0xFF1A1D1F),
                             fontSize: 14,
@@ -518,7 +515,6 @@ class GudangListPage extends StatelessWidget {
                     ),
                     const Divider(height: 24),
 
-                    // Waktu Pembuatan dan Pembaruan
                     const Text(
                       'Informasi Waktu',
                       style: TextStyle(
@@ -572,7 +568,6 @@ class GudangListPage extends StatelessWidget {
 
             const SizedBox(height: 24),
 
-            // Tombol Aksi
             _buildTombolAksi(
               icon: Icons.edit,
               label: 'Ubah Gudang',
@@ -591,8 +586,7 @@ class GudangListPage extends StatelessWidget {
                     isSuccess: result['success'],
                   );
                   if (result['success']) {
-                    await _controller
-                        .getGudangById(gudang.id); // Refresh detail gudang
+                    await _controller.getGudangById(gudang.id);
                   }
                 }
               },

@@ -5,10 +5,7 @@ class Gudang {
   final String name;
   final String? slug;
   final String? description;
-  final int? userId; // Pastikan field ini ada
-  final int stokTersedia;
-  final int stokDipinjam;
-  final int stokMaintenance;
+  final int? userId;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final DateTime? deletedAt;
@@ -18,9 +15,6 @@ class Gudang {
     required this.name,
     this.slug,
     this.description,
-    required this.stokTersedia,
-    required this.stokDipinjam,
-    required this.stokMaintenance,
     this.userId,
     this.createdAt,
     this.updatedAt,
@@ -28,24 +22,35 @@ class Gudang {
   });
 
   factory Gudang.fromJson(Map<String, dynamic> json) {
+    print('Parsing Gudang JSON: $json');
     return Gudang(
       id: json['id'] ?? 0,
-      name: json['name'] ?? '',
-      slug: json['slug'],
-      description: json['description'],
-      userId: json['user_id'],
-      stokTersedia: json['stok_tersedia'] ?? 0,
-      stokDipinjam: json['stok_dipinjam'] ?? 0,
-      stokMaintenance: json['stok_maintenance'] ?? 0,
+      name: json['name']?.toString() ?? '',
+      slug: json['slug']?.toString(),
+      description: json['description']?.toString(),
+      userId: json['user_id'] as int?,
       createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'])
+          ? DateTime.tryParse(json['created_at'].toString())
           : null,
       updatedAt: json['updated_at'] != null
-          ? DateTime.parse(json['updated_at'])
+          ? DateTime.tryParse(json['updated_at'].toString())
           : null,
       deletedAt: json['deleted_at'] != null
-          ? DateTime.parse(json['deleted_at'])
+          ? DateTime.tryParse(json['deleted_at'].toString())
           : null,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'slug': slug,
+      'description': description,
+      'user_id': userId,
+      'created_at': createdAt?.toIso8601String(),
+      'updated_at': updatedAt?.toIso8601String(),
+      'deleted_at': deletedAt?.toIso8601String(),
+    };
   }
 }

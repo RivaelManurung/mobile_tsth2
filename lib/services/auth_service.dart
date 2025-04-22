@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:inventory_tsth2/config/api.dart';
 
 class AuthService {
   final Dio _dio;
@@ -11,7 +12,7 @@ class AuthService {
     FlutterSecureStorage? storage,
   }) : _dio = dio ??
             Dio(BaseOptions(
-              baseUrl: 'http://127.0.0.1:8000/api',
+              baseUrl: baseUrl,
               headers: {'Accept': 'application/json'},
             )) {
     _storage = storage ?? FlutterSecureStorage(); // Initialize at runtime, not const

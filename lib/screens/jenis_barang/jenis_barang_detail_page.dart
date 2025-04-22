@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:inventory_tsth2/controller/JenisBarang/jenisbarang_controller.dart';
+import 'package:inventory_tsth2/controller/jenisbarang_controller.dart';
 import 'package:inventory_tsth2/screens/jenis_barang/jenis_barang_form_page.dart';
 
 class JenisBarangDetailPage extends StatelessWidget {

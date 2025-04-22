@@ -19,6 +19,9 @@ class TransactionTypeController extends GetxController {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController searchController = TextEditingController();
 
+  // Add this getter
+  List<TransactionType> get transactionTypes => transactionTypeList;
+
   TransactionTypeController({TransactionTypeService? service})
       : _service = service ?? TransactionTypeService();
 

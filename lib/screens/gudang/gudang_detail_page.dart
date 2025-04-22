@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:inventory_tsth2/screens/gudang/gudang_form_page.dart';
-import 'package:inventory_tsth2/controller/Gudang/gudang_controller.dart';
+import 'package:inventory_tsth2/controller/gudang_controller.dart';
 
 class GudangDetailPage extends StatelessWidget {
   GudangDetailPage({super.key});

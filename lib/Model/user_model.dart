@@ -37,17 +37,18 @@ class User {
 
   factory User.fromJson(Map<String, dynamic> json) {
     final data = json['data'] ?? json;
+    print('Parsing User JSON: $json'); // Debug print to inspect JSON
     return User(
-      id: data['id'],
-      name: data['name'],
-      email: data['email'],
-      phone: data['phone'],
-      address: data['address'],
-      photoUrl: data['photo_url'],
+      id: data['id'] as int? ?? 0, // Safe fallback for id
+      name: data['name']?.toString() ?? 'Unknown', // Safe fallback for name
+      email: data['email']?.toString() ?? 'unknown@example.com', // Fallback for missing email
+      phone: data['phone']?.toString(),
+      address: data['address']?.toString(),
+      photoUrl: data['photo_url']?.toString(),
       roles: data['roles'] != null 
           ? List<String>.from(data['roles'])
           : null,
-      createdAt: DateTime.parse(data['created_at']),
+      createdAt: DateTime.tryParse(data['created_at']?.toString() ?? '') ?? DateTime.now(), // Fallback for missing createdAt
     );
   }
 

@@ -2,6 +2,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:inventory_tsth2/Model/gudang_model.dart';
+import 'package:inventory_tsth2/Model/barang_gudang_model.dart';
+import 'package:inventory_tsth2/config/api.dart';
 import 'package:inventory_tsth2/services/auth_service.dart';
 
 class GudangService {
@@ -15,14 +17,13 @@ class GudangService {
     AuthService? authService,
   })  : _dio = dio ??
             Dio(BaseOptions(
-              baseUrl: 'http://127.0.0.1:8000/api',
+              baseUrl: baseUrl,
               headers: {'Accept': 'application/json'},
               connectTimeout: const Duration(seconds: 30),
               receiveTimeout: const Duration(seconds: 30),
             )),
         _authService = authService ?? AuthService() {
     _storage = storage ?? const FlutterSecureStorage();
-    // Aktifkan LogInterceptor untuk melihat detail request/response
     _dio.interceptors.add(LogInterceptor(responseBody: true, requestBody: true));
   }
 
@@ -33,8 +34,6 @@ class GudangService {
   }
 
   Future<bool> _validateToken(String token) async {
-    // Untuk contoh ini, kita anggap token selalu valid jika ada
-    // Anda bisa menambahkan logika validasi lebih lanjut di sini
     bool isValid = token.isNotEmpty;
     print('Token valid: $isValid');
     return isValid;
@@ -228,6 +227,42 @@ class GudangService {
       throw _handleError(e);
     } catch (e) {
       print('Unexpected error in deleteGudang: $e');
+      rethrow;
+    }
+  }
+
+  Future<List<BarangGudang>> getStockByGudang(int gudangId) async {
+    final token = await _getToken();
+    if (token == null) throw Exception('No token found');
+    if (!(await _validateToken(token))) throw Exception('Invalid token');
+
+    try {
+      print('Fetching stock for gudang ID $gudangId');
+      final response = await _dio.get(
+        '/gudangs',
+        queryParameters: {'gudang_id': gudangId},
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+          },
+        ),
+      );
+
+      print('getStockByGudang response: ${response.data}');
+
+      if (response.statusCode == 200) {
+        List<dynamic> data = response.data['data'] ?? [];
+        return data.map((json) => BarangGudang.fromJson(json)).toList();
+      } else {
+        throw Exception(response.data['message'] ?? 'Gagal memuat data stok');
+      }
+    } on DioException catch (e) {
+      print('DioException in getStockByGudang: ${e.message}');
+      print('Response data: ${e.response?.data}');
+      print('Status code: ${e.response?.statusCode}');
+      throw _handleError(e);
+    } catch (e) {
+      print('Unexpected error in getStockByGudang: $e');
       rethrow;
     }
   }

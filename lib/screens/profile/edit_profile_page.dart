@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:inventory_tsth2/Model/user_model.dart';
-import 'package:inventory_tsth2/controller/Profile/edit_profile_controler.dart';
+import 'package:inventory_tsth2/controller/edit_profile_controler.dart';
 import 'package:inventory_tsth2/services/user_services.dart';
 
 class EditProfilePage extends StatefulWidget {

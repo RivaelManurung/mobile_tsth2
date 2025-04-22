@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart'; // Add GetX for navigation
 import 'package:inventory_tsth2/Model/user_model.dart';
-import 'package:inventory_tsth2/controller/Profile/profile_controller.dart';
+import 'package:inventory_tsth2/controller/profile_controller.dart';
 import 'package:inventory_tsth2/core/routes/routes_name.dart';
 import 'package:inventory_tsth2/services/user_services.dart';
 import 'package:inventory_tsth2/widget/info_card.dart';

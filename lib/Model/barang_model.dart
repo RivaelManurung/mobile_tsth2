@@ -1,3 +1,4 @@
+// lib/models/barang_model.dart
 class Barang {
   final int id;
   final String barangNama;
@@ -26,18 +27,19 @@ class Barang {
   });
 
   factory Barang.fromJson(Map<String, dynamic> json) {
+    print('Parsing Barang JSON: $json'); // Debug log
     return Barang(
       id: json['id'] ?? 0,
-      barangNama: json['barang_nama'] ?? '',
-      barangSlug: json['barang_slug'] ?? '',
-      barangHarga: double.tryParse(json['barang_harga'].toString()) ?? 0.0,
+      barangNama: json['nama']?.toString() ?? json['barang_nama']?.toString() ?? 'Unknown',
+      barangSlug: json['barang_slug']?.toString() ?? 'unknown-slug',
+      barangHarga: double.tryParse(json['barang_harga']?.toString() ?? '0.0') ?? 0.0,
       barangGambar: json['barang_gambar'],
-      barangKode: json['barang_kode'] ?? '',
+      barangKode: json['kode']?.toString() ?? json['barang_kode']?.toString() ?? 'UNKNOWN',
       jenisbarangId: json['jenisbarang_id'],
       satuanId: json['satuan_id'],
       barangcategoryId: json['barangcategory_id'],
-      createdAt: DateTime.parse(json['created_at']),
-      updatedAt: DateTime.parse(json['updated_at']),
+      createdAt: DateTime.parse(json['created_at'] ?? DateTime.now().toIso8601String()),
+      updatedAt: DateTime.parse(json['updated_at'] ?? DateTime.now().toIso8601String()),
     );
   }
 

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:inventory_tsth2/controller/TransactionType/transaction_type_controller.dart';
+import 'package:inventory_tsth2/controller/transaction_type_controller.dart';
 
 class TransactionTypeFormPage extends StatelessWidget {
   TransactionTypeFormPage({super.key});

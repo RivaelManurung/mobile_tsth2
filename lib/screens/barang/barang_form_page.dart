@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:inventory_tsth2/controller/Barang/barang_controller.dart';
+import 'package:inventory_tsth2/controller/barang_controller.dart';
 
 class BarangFormPage extends StatelessWidget {
   final BarangController _controller = Get.find();

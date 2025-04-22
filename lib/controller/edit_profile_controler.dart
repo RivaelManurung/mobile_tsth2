@@ -2,6 +2,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:inventory_tsth2/Model/user_model.dart';
+import 'package:inventory_tsth2/config/api.dart';
+
 import 'package:inventory_tsth2/services/user_services.dart';
 
 class EditProfileController {
