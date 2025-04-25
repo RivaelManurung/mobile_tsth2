@@ -10,11 +10,13 @@ import 'package:inventory_tsth2/core/routes/routes_name.dart';
 import 'package:barcode_scan2/barcode_scan2.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:convert';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart' as secure_storage;
 
 class TransactionController extends GetxController {
   final TransactionService _transactionService;
   final TransactionTypeService _transactionTypeService;
   final BarangService _barangService;
+  final secure_storage.FlutterSecureStorage _storage;
 
   // Reactive state variables
   final RxList<Transaction> transactionList = <Transaction>[].obs;
@@ -30,25 +32,38 @@ class TransactionController extends GetxController {
   final RxList<Map<String, dynamic>> scannedItems = <Map<String, dynamic>>[].obs;
   final RxBool isScanningAllowed = true.obs;
   final TextEditingController quantityController = TextEditingController(text: '1');
+  final RxString userRole = ''.obs;
 
   // Form controllers
   final TextEditingController searchController = TextEditingController();
+  final TextEditingController dateStartController = TextEditingController();
+  final TextEditingController dateEndController = TextEditingController();
 
   TransactionController({
     TransactionService? transactionService,
     TransactionTypeService? transactionTypeService,
     BarangService? barangService,
+    secure_storage.FlutterSecureStorage? storage,
   })  : _transactionService = transactionService ?? TransactionService(),
         _transactionTypeService = transactionTypeService ?? TransactionTypeService(),
-        _barangService = barangService ?? BarangService();
+        _barangService = barangService ?? BarangService(),
+        _storage = storage ?? const secure_storage.FlutterSecureStorage();
 
   @override
   void onInit() {
     super.onInit();
-    fetchAllTransactions();
-    fetchTransactionTypes();
-    fetchBarangs();
     _setupSearchListener();
+
+    // Listen to route changes to reload user data after login
+    ever(Get.currentRoute.obs, (route) {
+      if (route == RoutesName.dashboard) {
+        print('Route changed to dashboard, reloading user data');
+        loadUserData();
+        fetchAllTransactions();
+        fetchTransactionTypes();
+        fetchBarangs();
+      }
+    });
   }
 
   void _setupSearchListener() {
@@ -64,10 +79,56 @@ class TransactionController extends GetxController {
   void onClose() {
     searchController.dispose();
     quantityController.dispose();
+    dateStartController.dispose();
+    dateEndController.dispose();
     super.onClose();
   }
 
-  // Fungsi untuk menampilkan notifikasi sukses
+  // Print transaction types for debugging
+  void printTransactionTypes() {
+    if (transactionTypes.isEmpty) {
+      print('No transaction types available');
+    } else {
+      print('Transaction Types:');
+      for (var type in transactionTypes) {
+        print('ID: ${type.id}, Name: ${type.name ?? "Unknown"}');
+      }
+    }
+  }
+
+  // Load user data from FlutterSecureStorage
+  Future<void> loadUserData() async {
+    try {
+      final userDataString = await _storage.read(key: 'user');
+      print('Loaded userDataString from FlutterSecureStorage: $userDataString');
+      if (userDataString != null) {
+        final userData = jsonDecode(userDataString);
+        userRole.value = (userData['roles'] as List<dynamic>?)?.first ?? 'user';
+      } else {
+        print('No userData found in FlutterSecureStorage, redirecting to login');
+        userRole.value = 'user';
+        Get.offAllNamed(RoutesName.login);
+      }
+    } catch (e) {
+      print('Gagal memuat data pengguna: $e');
+      userRole.value = 'user';
+      Get.offAllNamed(RoutesName.login);
+    }
+  }
+
+  // Save user data to FlutterSecureStorage
+  Future<void> saveUserData(Map<String, dynamic> loginResponse) async {
+    try {
+      final data = loginResponse['data'];
+      print('Saving userData to FlutterSecureStorage: $data');
+      await _storage.write(key: 'user', value: jsonEncode(data));
+      userRole.value = (data['roles'] as List<dynamic>?)?.first ?? 'user';
+    } catch (e) {
+      print('Gagal menyimpan data pengguna: $e');
+    }
+  }
+
+  // Show success snackbar
   void showSuccessSnackbar(String title, String message) {
     Get.snackbar(
       title,
@@ -78,17 +139,14 @@ class TransactionController extends GetxController {
       margin: const EdgeInsets.all(16),
       borderRadius: 12,
       duration: const Duration(seconds: 3),
-      icon: const Icon(
-        Icons.check_circle,
-        color: Colors.white,
-      ),
+      icon: const Icon(Icons.check_circle, color: Colors.white),
       shouldIconPulse: true,
       snackStyle: SnackStyle.FLOATING,
       animationDuration: const Duration(milliseconds: 500),
     );
   }
 
-  // Fungsi untuk menampilkan notifikasi error
+  // Show error snackbar
   void showErrorSnackbar(String title, String message) {
     Get.snackbar(
       title,
@@ -99,10 +157,7 @@ class TransactionController extends GetxController {
       margin: const EdgeInsets.all(16),
       borderRadius: 12,
       duration: const Duration(seconds: 3),
-      icon: const Icon(
-        Icons.error,
-        color: Colors.white,
-      ),
+      icon: const Icon(Icons.error, color: Colors.white),
       shouldIconPulse: true,
       snackStyle: SnackStyle.FLOATING,
       animationDuration: const Duration(milliseconds: 500),
@@ -115,10 +170,13 @@ class TransactionController extends GetxController {
       errorMessage('');
       final types = await _transactionTypeService.getAllTransactionType();
       transactionTypes.assignAll(types);
+      printTransactionTypes(); // Print transaction types after fetching
     } catch (e) {
       errorMessage('Gagal memuat tipe transaksi: $e');
       showErrorSnackbar('Error', errorMessage.value);
       if (errorMessage.value.contains('No token found')) {
+        await _storage.delete(key: 'auth_token');
+        await _storage.delete(key: 'user');
         Get.offAllNamed(RoutesName.login);
       }
     } finally {
@@ -136,6 +194,8 @@ class TransactionController extends GetxController {
       errorMessage('Gagal memuat barang: $e');
       showErrorSnackbar('Error', errorMessage.value);
       if (errorMessage.value.contains('No token found')) {
+        await _storage.delete(key: 'auth_token');
+        await _storage.delete(key: 'user');
         Get.offAllNamed(RoutesName.login);
       }
     } finally {
@@ -164,6 +224,8 @@ class TransactionController extends GetxController {
       errorMessage('Gagal memuat transaksi: $e');
       showErrorSnackbar('Error', errorMessage.value);
       if (errorMessage.value.contains('No token found')) {
+        await _storage.delete(key: 'auth_token');
+        await _storage.delete(key: 'user');
         Get.offAllNamed(RoutesName.login);
       }
     } finally {
@@ -191,7 +253,11 @@ class TransactionController extends GetxController {
 
       var result = await BarcodeScanner.scan(
         options: const ScanOptions(
-          restrictFormat: [BarcodeFormat.qr, BarcodeFormat.code128, BarcodeFormat.ean13],
+          restrictFormat: [
+            BarcodeFormat.qr,
+            BarcodeFormat.code128,
+            BarcodeFormat.ean13
+          ],
           useCamera: -1,
           autoEnableFlash: false,
           android: AndroidOptions(useAutoFocus: true),
@@ -208,12 +274,25 @@ class TransactionController extends GetxController {
     } catch (e) {
       errorMessage('Gagal memindai barcode: $e');
       showErrorSnackbar('Error', errorMessage.value);
+      if (errorMessage.value.contains('No token found')) {
+        await _storage.delete(key: 'auth_token');
+        await _storage.delete(key: 'user');
+        Get.offAllNamed(RoutesName.login);
+      }
     } finally {
       isLoading(false);
       Future.delayed(const Duration(milliseconds: 1500), () {
         isScanningAllowed(true);
       });
     }
+  }
+
+  Future<void> checkManualBarcode(String code) async {
+    if (code.isEmpty) {
+      showErrorSnackbar('Error', 'Masukkan kode barcode terlebih dahulu');
+      return;
+    }
+    await _checkBarcode(code);
   }
 
   Future<void> _checkBarcode(String code) async {
@@ -248,7 +327,13 @@ class TransactionController extends GetxController {
         ),
       );
     } catch (e) {
-      handleError(e, 'Gagal memverifikasi barcode');
+      errorMessage('Gagal memverifikasi barcode: $e');
+      showErrorSnackbar('Error', errorMessage.value);
+      if (errorMessage.value.contains('No token found')) {
+        await _storage.delete(key: 'auth_token');
+        await _storage.delete(key: 'user');
+        Get.offAllNamed(RoutesName.login);
+      }
     } finally {
       isLoading(false);
     }
@@ -327,9 +412,18 @@ class TransactionController extends GetxController {
 
       showSuccessSnackbar('Sukses', 'Transaksi berhasil disimpan');
     } catch (e) {
-      errorMessage('Gagal menyimpan transaksi: $e');
+      print('Error saat menyimpan transaksi: $e');
+      String errorMsg = e.toString();
+      if (errorMsg.contains('Exception: Transaksi gagal!')) {
+        errorMsg = 'Transaksi gagal disimpan. Pastikan semua data valid dan Anda memiliki akses ke gudang ini.';
+      }
+      errorMessage.value = errorMsg;
       showErrorSnackbar('Error', errorMessage.value);
-      print('Error: $e');
+      if (errorMessage.value.contains('No token found')) {
+        await _storage.delete(key: 'auth_token');
+        await _storage.delete(key: 'user');
+        Get.offAllNamed(RoutesName.login);
+      }
     } finally {
       isLoading(false);
     }
@@ -343,8 +437,38 @@ class TransactionController extends GetxController {
       filteredTransactionList.assignAll(
         transactionList.where((item) =>
             (item.transactionCode?.toLowerCase().contains(query) ?? false) ||
-            (item.transactionType.name?.toLowerCase().contains(query) ?? false)),
+            (item.transactionType?.name?.toLowerCase().contains(query) ?? false)),
       );
+    }
+  }
+
+  Future<void> applyFilter() async {
+    try {
+      isLoading(true);
+      errorMessage('');
+
+      final transactionTypeId =
+          selectedTransactionTypeId.value == 0 ? null : selectedTransactionTypeId.value;
+      final dateStart = dateStartController.text.isEmpty ? null : dateStartController.text;
+      final dateEnd = dateEndController.text.isEmpty ? null : dateEndController.text;
+
+      await fetchAllTransactions(
+        transactionTypeId: transactionTypeId,
+        dateStart: dateStart,
+        dateEnd: dateEnd,
+      );
+
+      showSuccessSnackbar('Sukses', 'Filter berhasil diterapkan');
+    } catch (e) {
+      errorMessage('Gagal menerapkan filter: $e');
+      showErrorSnackbar('Error', errorMessage.value);
+      if (errorMessage.value.contains('No token found')) {
+        await _storage.delete(key: 'auth_token');
+        await _storage.delete(key: 'user');
+        Get.offAllNamed(RoutesName.login);
+      }
+    } finally {
+      isLoading(false);
     }
   }
 
@@ -358,6 +482,8 @@ class TransactionController extends GetxController {
       errorMessage('Gagal memuat detail transaksi: $e');
       showErrorSnackbar('Error', errorMessage.value);
       if (errorMessage.value.contains('No token found')) {
+        await _storage.delete(key: 'auth_token');
+        await _storage.delete(key: 'user');
         Get.offAllNamed(RoutesName.login);
       }
     } finally {
@@ -367,10 +493,13 @@ class TransactionController extends GetxController {
 
   void refreshData() {
     fetchAllTransactions();
+    fetchTransactionTypes(); // Ensure transaction types are refreshed
     scannedItems.clear();
     scannedBarcode('');
     selectedTransactionTypeId(0);
     quantityController.text = '1';
+    dateStartController.clear();
+    dateEndController.clear();
   }
 
   void handleError(dynamic e, String defaultMessage) {

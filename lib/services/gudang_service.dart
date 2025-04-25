@@ -1,4 +1,3 @@
-// lib/services/gudang_service.dart
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:inventory_tsth2/Model/gudang_model.dart';
@@ -87,80 +86,6 @@ class GudangService {
     throw Exception('Gagal memuat daftar gudang setelah $retries percobaan');
   }
 
-  Future<Gudang> createGudang(Map<String, dynamic> data) async {
-    final token = await _getToken();
-    if (token == null) throw Exception('No token found');
-    if (!(await _validateToken(token))) throw Exception('Invalid token');
-
-    try {
-      print('Creating gudang with data: $data');
-      final response = await _dio.post(
-        '/gudangs',
-        data: data,
-        options: Options(
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Content-Type': 'application/json',
-          },
-        ),
-      );
-
-      print('createGudang response: ${response.data}');
-
-      if (response.statusCode == 201 || response.statusCode == 200) {
-        print('Gudang: Parsing JSON: ${response.data['data']}');
-        return Gudang.fromJson(response.data['data']);
-      } else {
-        throw Exception(response.data['message'] ?? 'Gagal membuat gudang');
-      }
-    } on DioException catch (e) {
-      print('DioException in createGudang: ${e.message}');
-      print('Response data: ${e.response?.data}');
-      print('Status code: ${e.response?.statusCode}');
-      throw _handleError(e);
-    } catch (e) {
-      print('Unexpected error in createGudang: $e');
-      rethrow;
-    }
-  }
-
-  Future<bool> updateGudang(int id, Map<String, dynamic> data) async {
-    final token = await _getToken();
-    if (token == null) throw Exception('No token found');
-    if (!(await _validateToken(token))) throw Exception('Invalid token');
-
-    try {
-      print('Updating gudang with ID $id and data: $data');
-      final response = await _dio.put(
-        '/gudangs/$id',
-        data: data,
-        options: Options(
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Content-Type': 'application/json',
-          },
-        ),
-      );
-
-      print('updateGudang response: ${response.data}');
-
-      if (response.statusCode == 200) {
-        print('Gudang updated successfully');
-        return true;
-      } else {
-        throw Exception(response.data['message'] ?? 'Gagal memperbarui gudang');
-      }
-    } on DioException catch (e) {
-      print('DioException in updateGudang: ${e.message}');
-      print('Response data: ${e.response?.data}');
-      print('Status code: ${e.response?.statusCode}');
-      throw _handleError(e);
-    } catch (e) {
-      print('Unexpected error in updateGudang: $e');
-      rethrow;
-    }
-  }
-
   Future<Gudang> getGudangById(int id) async {
     final token = await _getToken();
     if (token == null) throw Exception('No token found');
@@ -196,76 +121,6 @@ class GudangService {
     }
   }
 
-  Future<bool> deleteGudang(int id) async {
-    final token = await _getToken();
-    if (token == null) throw Exception('No token found');
-    if (!(await _validateToken(token))) throw Exception('Invalid token');
-
-    try {
-      print('Deleting gudang with ID $id');
-      final response = await _dio.delete(
-        '/gudangs/$id',
-        options: Options(
-          headers: {
-            'Authorization': 'Bearer $token',
-          },
-        ),
-      );
-
-      print('deleteGudang response: ${response.data}');
-
-      if (response.statusCode == 200 || response.statusCode == 204) {
-        print('Gudang deleted successfully');
-        return true;
-      } else {
-        throw Exception(response.data['message'] ?? 'Gagal menghapus gudang');
-      }
-    } on DioException catch (e) {
-      print('DioException in deleteGudang: ${e.message}');
-      print('Response data: ${e.response?.data}');
-      print('Status code: ${e.response?.statusCode}');
-      throw _handleError(e);
-    } catch (e) {
-      print('Unexpected error in deleteGudang: $e');
-      rethrow;
-    }
-  }
-
-  Future<List<BarangGudang>> getStockByGudang(int gudangId) async {
-    final token = await _getToken();
-    if (token == null) throw Exception('No token found');
-    if (!(await _validateToken(token))) throw Exception('Invalid token');
-
-    try {
-      print('Fetching stock for gudang ID $gudangId');
-      final response = await _dio.get(
-        '/gudangs',
-        queryParameters: {'gudang_id': gudangId},
-        options: Options(
-          headers: {
-            'Authorization': 'Bearer $token',
-          },
-        ),
-      );
-
-      print('getStockByGudang response: ${response.data}');
-
-      if (response.statusCode == 200) {
-        List<dynamic> data = response.data['data'] ?? [];
-        return data.map((json) => BarangGudang.fromJson(json)).toList();
-      } else {
-        throw Exception(response.data['message'] ?? 'Gagal memuat data stok');
-      }
-    } on DioException catch (e) {
-      print('DioException in getStockByGudang: ${e.message}');
-      print('Response data: ${e.response?.data}');
-      print('Status code: ${e.response?.statusCode}');
-      throw _handleError(e);
-    } catch (e) {
-      print('Unexpected error in getStockByGudang: $e');
-      rethrow;
-    }
-  }
 
   String _handleError(DioException e) {
     if (e.response?.statusCode == 401) {

@@ -12,13 +12,11 @@ class SatuanController extends GetxController {
   final RxList<Satuan> filteredSatuan = <Satuan>[].obs;
   final Rx<Satuan?> selectedSatuan = Rx<Satuan?>(null);
   final RxBool isLoading = false.obs;
-  final RxString errorMessage = ''.obs; // General error message (e.g., for form operations)
+  final RxString errorMessage = ''.obs; // General error message
   final RxString listErrorMessage = ''.obs; // Error message specific to list fetching
   final RxString searchQuery = ''.obs;
 
   // Form controllers
-  final TextEditingController nameController = TextEditingController();
-  final TextEditingController descriptionController = TextEditingController();
   final TextEditingController searchController = TextEditingController();
 
   SatuanController({SatuanService? service})
@@ -43,14 +41,18 @@ class SatuanController extends GetxController {
   @override
   void onClose() {
     searchController.dispose();
-    nameController.dispose();
-    descriptionController.dispose();
     super.onClose();
   }
 
   void resetErrorForListPage() {
     errorMessage('');
     listErrorMessage('');
+  }
+
+  void clearSearch() {
+    searchController.clear();
+    searchQuery.value = '';
+    filterSatuan();
   }
 
   Future<void> fetchAllSatuan() async {
@@ -90,140 +92,6 @@ class SatuanController extends GetxController {
     }
   }
 
-  Future<void> createSatuan() async {
-    try {
-      isLoading(true);
-      errorMessage('');
-      final data = {
-        'name': nameController.text.trim(),
-        'description': descriptionController.text.trim(),
-      };
-      final newSatuan = await _service.createSatuan(data);
-      satuanList.add(newSatuan);
-      filterSatuan();
-      Get.back();
-      Get.snackbar('Success', 'Unit created successfully',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.green,
-          colorText: Colors.white);
-    } catch (e) {
-      errorMessage(e.toString());
-      Get.snackbar('Gagal', e.toString(),
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.red,
-          colorText: Colors.white);
-    } finally {
-      isLoading(false);
-    }
-  }
-
-  Future<void> updateSatuan(int id) async {
-    try {
-      isLoading(true);
-      errorMessage('');
-      final data = {
-        'name': nameController.text.trim(),
-        'description': descriptionController.text.trim(),
-      };
-      final updatedSatuan = await _service.updateSatuan(id, data);
-      final index = satuanList.indexWhere((item) => item.id == id);
-      if (index != -1) {
-        satuanList[index] = updatedSatuan;
-        filterSatuan();
-      }
-      selectedSatuan(updatedSatuan);
-      Get.back();
-      Get.snackbar('Success', 'Unit updated successfully',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.green,
-          colorText: Colors.white);
-    } catch (e) {
-      errorMessage(e.toString());
-      Get.snackbar('Gagal', e.toString(),
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.red,
-          colorText: Colors.white);
-    } finally {
-      isLoading(false);
-    }
-  }
-
-  Future<void> deleteSatuan(int id) async {
-    try {
-      isLoading(true);
-      errorMessage('');
-      final success = await _service.deleteSatuan(id);
-      if (success) {
-        satuanList.removeWhere((item) => item.id == id);
-        filterSatuan();
-        Get.back();
-        Get.snackbar('Success', 'Unit deleted successfully',
-            snackPosition: SnackPosition.BOTTOM,
-            backgroundColor: Colors.green,
-            colorText: Colors.white);
-      }
-    } catch (e) {
-      errorMessage(e.toString());
-      Get.snackbar('Gagal', e.toString(),
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.red,
-          colorText: Colors.white);
-    } finally {
-      isLoading(false);
-    }
-  }
-
-  Future<void> restoreSatuan(int id) async {
-    try {
-      isLoading(true);
-      errorMessage('');
-      final restoredSatuan = await _service.restoreSatuan(id);
-      final index = satuanList.indexWhere((item) => item.id == id);
-      if (index != -1) {
-        satuanList[index] = restoredSatuan;
-        filterSatuan();
-      }
-      selectedSatuan(restoredSatuan);
-      Get.snackbar('Success', 'Unit restored successfully',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.green,
-          colorText: Colors.white);
-    } catch (e) {
-      errorMessage(e.toString());
-      Get.snackbar('Gagal', e.toString(),
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.red,
-          colorText: Colors.white);
-    } finally {
-      isLoading(false);
-    }
-  }
-
-  Future<void> forceDeleteSatuan(int id) async {
-    try {
-      isLoading(true);
-      errorMessage('');
-      final success = await _service.forceDeleteSatuan(id);
-      if (success) {
-        satuanList.removeWhere((item) => item.id == id);
-        filterSatuan();
-        Get.back();
-        Get.snackbar('Success', 'Unit permanently deleted',
-            snackPosition: SnackPosition.BOTTOM,
-            backgroundColor: Colors.green,
-            colorText: Colors.white);
-      }
-    } catch (e) {
-      errorMessage(e.toString());
-      Get.snackbar('Gagal', e.toString(),
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.red,
-          colorText: Colors.white);
-    } finally {
-      isLoading(false);
-    }
-  }
-
   void filterSatuan() {
     final query = searchQuery.value.toLowerCase();
     if (query.isEmpty) {
@@ -235,14 +103,5 @@ class SatuanController extends GetxController {
             (item.description?.toLowerCase().contains(query) ?? false)),
       );
     }
-  }
-
-  void clearForm() {
-    nameController.clear();
-    descriptionController.clear();
-    searchController.clear();
-    searchQuery.value = '';
-    errorMessage('');
-    selectedSatuan(null);
   }
 }

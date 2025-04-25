@@ -1,10 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
 import 'package:inventory_tsth2/controller/Auth/auth_controller.dart';
 import 'package:inventory_tsth2/controller/satuan_controller.dart';
 import 'package:inventory_tsth2/core/routes/routes_name.dart';
-import 'package:inventory_tsth2/screens/satuan/satuan_form_page.dart';
 import 'package:pull_to_refresh_flutter3/pull_to_refresh_flutter3.dart';
 
 class SatuanListPage extends StatelessWidget {
@@ -13,82 +13,65 @@ class SatuanListPage extends StatelessWidget {
   final SatuanController _controller = Get.put(SatuanController());
   final AuthController _authController = Get.find<AuthController>();
   final RefreshController _refreshController = RefreshController();
-
-  // State untuk melacak satuan yang dipilih untuk tampilan detail
   final RxnInt _selectedSatuanId = RxnInt();
+
+  // Timer untuk debounce pencarian
+  Timer? _debounce;
+
+  // ValueNotifier untuk memantau perubahan teks pencarian
+  final ValueNotifier<bool> _isSearchNotEmpty = ValueNotifier<bool>(false);
 
   @override
   Widget build(BuildContext context) {
     _controller.resetErrorForListPage();
+    _controller.clearSearch(); // Clear search state when page is initialized
     final isSmallScreen = MediaQuery.of(context).size.width < 400;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFF),
-      body: SmartRefresher(
-        controller: _refreshController,
-        onRefresh: _refreshData,
-        enablePullDown: _selectedSatuanId.value == null,
-        header: const ClassicHeader(
-          idleText: 'Tarik untuk memperbarui',
-          releaseText: 'Lepas untuk memperbarui',
-          refreshingText: 'Memperbarui...',
-          completeText: 'Pembaruan selesai',
-          failedText: 'Pembaruan gagal',
-          textStyle: TextStyle(color: Color(0xFF6F767E)),
-        ),
-        child: CustomScrollView(
-          physics: const ClampingScrollPhysics(),
-          slivers: [
-            _buildAppBar(isSmallScreen),
-            Obx(() {
-              if (_selectedSatuanId.value == null) {
-                return _buildDaftarView(context, isSmallScreen);
-              } else {
-                return _buildDetailView(context, _selectedSatuanId.value!, isSmallScreen);
-              }
-            }),
-          ],
+    // Inisialisasi listener untuk TextEditingController
+    _controller.searchController.addListener(() {
+      _isSearchNotEmpty.value = _controller.searchController.text.isNotEmpty;
+    });
+
+    return WillPopScope(
+      onWillPop: () async {
+        if (_selectedSatuanId.value != null) {
+          _selectedSatuanId.value = null;
+          _controller.selectedSatuan.value = null;
+          return false;
+        }
+        _controller.clearSearch(); // Clear search before navigating to dashboard
+        Get.offAllNamed(RoutesName.dashboard);
+        return true;
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8FAFF),
+        body: SmartRefresher(
+          controller: _refreshController,
+          onRefresh: _refreshData,
+          enablePullDown: _selectedSatuanId.value == null,
+          header: const ClassicHeader(
+            idleText: 'Tarik untuk memperbarui',
+            releaseText: 'Lepas untuk memperbarui',
+            refreshingText: 'Memperbarui...',
+            completeText: 'Pembaruan selesai',
+            failedText: 'Pembaruan gagal',
+            textStyle: TextStyle(color: Color(0xFF6F767E)),
+          ),
+          child: CustomScrollView(
+            physics: const ClampingScrollPhysics(),
+            slivers: [
+              _buildAppBar(isSmallScreen),
+              Obx(() {
+                if (_selectedSatuanId.value == null) {
+                  return _buildDaftarView(context, isSmallScreen);
+                } else {
+                  return _buildDetailView(context, _selectedSatuanId.value!, isSmallScreen);
+                }
+              }),
+            ],
+          ),
         ),
       ),
-      floatingActionButton: Obx(() => _selectedSatuanId.value == null
-          ? Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFF4E6AFF),
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(4.0),
-                child: FloatingActionButton.extended(
-                  onPressed: () {
-                    _controller.clearForm();
-                    Get.to(() => SatuanFormPage(isEdit: false));
-                  },
-                  label: const Text('Tambah Satuan'),
-                  icon: const Icon(Icons.add),
-                  backgroundColor: const Color(0xFF4E6AFF),
-                  elevation: 0,
-                  highlightElevation: 3,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  extendedPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  splashColor: Colors.white.withOpacity(0.3),
-                  foregroundColor: Colors.white,
-                  extendedTextStyle: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.2, duration: 400.ms),
-              ),
-            )
-          : const SizedBox.shrink()),
     );
   }
 
@@ -105,7 +88,15 @@ class SatuanListPage extends StatelessWidget {
         padding: const EdgeInsets.only(left: 8.0),
         child: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white, size: 28),
-          onPressed: () => Get.back(),
+          onPressed: () {
+            if (_selectedSatuanId.value != null) {
+              _selectedSatuanId.value = null;
+              _controller.selectedSatuan.value = null;
+            } else {
+              _controller.clearSearch(); // Clear search before navigating
+              Get.offAllNamed(RoutesName.dashboard);
+            }
+          },
           tooltip: 'Kembali',
         ).animate().fadeIn(delay: 300.ms).scale(),
       ),
@@ -177,7 +168,7 @@ class SatuanListPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Kelola satuan Anda dengan mudah',
+                    'Lihat daftar satuan Anda',
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.9),
                       fontSize: isSmallScreen ? 14 : 16,
@@ -217,6 +208,22 @@ class SatuanListPage extends StatelessWidget {
                   hintText: 'Cari satuan...',
                   hintStyle: const TextStyle(color: Color(0xFF6F767E)),
                   prefixIcon: const Icon(Icons.search, color: Color(0xFF4E6AFF)),
+                  suffixIcon: ValueListenableBuilder<bool>(
+                    valueListenable: _isSearchNotEmpty,
+                    builder: (context, isNotEmpty, child) {
+                      if (isNotEmpty) {
+                        return IconButton(
+                          icon: const Icon(Icons.clear, color: Color(0xFF4E6AFF)),
+                          onPressed: () {
+                            _controller.searchController.clear();
+                            _debounce?.cancel();
+                            _controller.filterSatuan();
+                          },
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
                   filled: true,
                   fillColor: Colors.transparent,
                   border: OutlineInputBorder(
@@ -226,9 +233,15 @@ class SatuanListPage extends StatelessWidget {
                   contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
                 ),
                 style: const TextStyle(fontSize: 14, color: Color(0xFF1A1D1F)),
-                onChanged: (value) => _controller.filterSatuan(),
-              ),
-            ).animate().fadeIn(delay: 500.ms).slideY(begin: 0.2),
+                onChanged: (value) {
+                  // Debounce pencarian
+                  if (_debounce?.isActive ?? false) _debounce?.cancel();
+                  _debounce = Timer(const Duration(milliseconds: 300), () {
+                    _controller.filterSatuan();
+                  });
+                },
+              ).animate().fadeIn(delay: 500.ms).slideY(begin: 0.2),
+            ),
           ),
           Obx(() {
             if (_controller.isLoading.value) {
@@ -317,14 +330,6 @@ class SatuanListPage extends StatelessWidget {
                         color: Colors.grey[600],
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Tambah satuan baru untuk memulai',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
-                    ),
                   ],
                 ),
               ).animate().fadeIn(delay: 200.ms).scale(delay: 200.ms, duration: 400.ms);
@@ -368,6 +373,10 @@ class SatuanListPage extends StatelessWidget {
                               offset: const Offset(0, 2),
                             ),
                           ],
+                          border: Border.all(
+                            color: const Color(0xFF4E6AFF).withOpacity(0.1),
+                            width: 1,
+                          ),
                         ),
                         child: Padding(
                           padding: const EdgeInsets.all(16),
@@ -376,15 +385,14 @@ class SatuanListPage extends StatelessWidget {
                             child: Row(
                               children: [
                                 CircleAvatar(
-                                  backgroundColor:
-                                      const Color(0xFF4E6AFF).withOpacity(0.1),
+                                  backgroundColor: const Color(0xFF4E6AFF).withOpacity(0.1),
                                   radius: 24,
                                   child: Text(
                                     satuan.name.substring(0, 1).toUpperCase(),
                                     style: const TextStyle(
                                       color: Color(0xFF4E6AFF),
                                       fontSize: 18,
-                                      fontWeight: FontWeight.bold,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ),
@@ -433,7 +441,7 @@ class SatuanListPage extends StatelessWidget {
               ),
             );
           }),
-          const SizedBox(height: 80), // Prevent FAB overlap
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -543,10 +551,84 @@ class SatuanListPage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                margin: const EdgeInsets.symmetric(vertical: 8),
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF6A82FB), Color(0xFF4C60DB)],
+                  ),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(14),
+                    topRight: Radius.circular(14),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: Colors.white.withOpacity(0.2),
+                      radius: 30,
+                      child: Text(
+                        satuan.name.substring(0, 1).toUpperCase(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            satuan.name,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              fontSize: isSmallScreen ? 20 : 24,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black.withOpacity(0.2),
+                                  offset: const Offset(1, 1),
+                                  blurRadius: 4,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Detail Satuan',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.9),
+                              fontSize: isSmallScreen ? 14 : 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ).animate().fadeIn(duration: 400.ms),
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(14),
+                    bottomRight: Radius.circular(14),
+                  ),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.05),
@@ -555,109 +637,42 @@ class SatuanListPage extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            backgroundColor: const Color(0xFF4E6AFF).withOpacity(0.1),
-                            radius: 28,
-                            child: Text(
-                              satuan.name.substring(0, 1).toUpperCase(),
-                              style: const TextStyle(
-                                color: Color(0xFF4E6AFF),
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  satuan.name,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    color: const Color(0xFF1A1D1F),
-                                    fontSize: isSmallScreen ? 18 : 20,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  satuan.description ?? 'Tidak ada deskripsi',
-                                  style: TextStyle(
-                                    color: const Color(0xFF6F767E),
-                                    fontSize: isSmallScreen ? 14 : 16,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: satuan.deletedAt == null
-                              ? Colors.green.withOpacity(0.1)
-                              : Colors.red.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          satuan.deletedAt == null ? 'Aktif' : 'Dihapus',
-                          style: TextStyle(
-                            color: satuan.deletedAt == null ? Colors.green : Colors.red,
-                            fontWeight: FontWeight.w600,
-                            fontSize: isSmallScreen ? 12 : 14,
-                          ),
-                        ),
-                      ).animate().scale(duration: 300.ms),
-                    ],
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildDetailRow(
+                      label: 'Nama Satuan',
+                      value: satuan.name,
+                      isSmallScreen: isSmallScreen,
+                    ),
+                    const Divider(height: 24),
+                    _buildDetailRow(
+                      label: 'Deskripsi',
+                      value: satuan.description ?? 'Tidak ada deskripsi',
+                      isSmallScreen: isSmallScreen,
+                    ),
+                    const Divider(height: 24),
+                    _buildDetailRow(
+                      label: 'Status',
+                      value: satuan.deletedAt == null ? 'Aktif' : 'Dihapus',
+                      isSmallScreen: isSmallScreen,
+                      valueColor: satuan.deletedAt == null ? Colors.green : Colors.red,
+                    ),
+                    const Divider(height: 24),
+                    _buildDetailRow(
+                      label: 'Dibuat Pada',
+                      value: satuan.createdAt?.toString() ?? '-',
+                      isSmallScreen: isSmallScreen,
+                    ),
+                    const Divider(height: 24),
+                    _buildDetailRow(
+                      label: 'Diperbarui Pada',
+                      value: satuan.updatedAt?.toString() ?? '-',
+                      isSmallScreen: isSmallScreen,
+                    ),
+                  ],
                 ),
-              ).animate().fadeIn(duration: 400.ms),
-              const SizedBox(height: 24),
-              _buildTombolAksi(
-                icon: Icons.edit,
-                label: 'Ubah Satuan',
-                color: const Color(0xFF4E6AFF),
-                onPressed: () {
-                  _controller.nameController.text = satuan.name;
-                  _controller.descriptionController.text = satuan.description ?? '';
-                  Get.to(() => SatuanFormPage(isEdit: true, satuanId: satuan.id));
-                },
-                isSmallScreen: isSmallScreen,
-              ),
-              if (satuan.deletedAt == null)
-                _buildTombolAksi(
-                  icon: Icons.delete,
-                  label: 'Hapus Satuan',
-                  color: Colors.red,
-                  onPressed: () => _tampilkanKonfirmasiHapus(context, satuan.id),
-                  isSmallScreen: isSmallScreen,
-                ),
-              if (satuan.deletedAt != null)
-                _buildTombolAksi(
-                  icon: Icons.restore,
-                  label: 'Pulihkan Satuan',
-                  color: Colors.green,
-                  onPressed: () => _tampilkanKonfirmasiPulihkan(context, satuan.id),
-                  isSmallScreen: isSmallScreen,
-                ),
-              if (satuan.deletedAt != null)
-                _buildTombolAksi(
-                  icon: Icons.delete_forever,
-                  label: 'Hapus Permanen',
-                  color: Colors.red[900]!,
-                  onPressed: () => _tampilkanKonfirmasiHapusPermanen(context, satuan.id),
-                  isSmallScreen: isSmallScreen,
-                ),
+              ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.2),
             ],
           ),
         );
@@ -665,219 +680,37 @@ class SatuanListPage extends StatelessWidget {
     );
   }
 
-  Widget _buildTombolAksi({
-    required IconData icon,
+  Widget _buildDetailRow({
     required String label,
-    required Color color,
-    required VoidCallback onPressed,
+    required String value,
     required bool isSmallScreen,
+    Color? valueColor,
   }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.white,
-          minimumSize: const Size(double.infinity, 50),
-          padding: const EdgeInsets.all(4),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-          elevation: 2,
-          shadowColor: Colors.black.withOpacity(0.1),
-        ).copyWith(
-          backgroundColor: MaterialStateProperty.resolveWith((states) {
-            if (states.contains(MaterialState.pressed)) {
-              return Colors.white;
-            }
-            return Colors.white;
-          }),
-        ),
-        onPressed: onPressed,
-        child: Container(
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Center(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, color: Colors.white, size: isSmallScreen ? 20 : 22),
-                const SizedBox(width: 8),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: isSmallScreen ? 16 : 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          flex: 2,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: isSmallScreen ? 14 : 16,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF1A1D1F),
             ),
           ),
         ),
-      ),
-    ).animate().slideY(begin: 0.3, end: 0, duration: 400.ms);
-  }
-
-  void _tampilkanKonfirmasiHapus(BuildContext context, int id) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Text('Hapus Satuan'),
-        content: const Text('Apakah Anda yakin ingin menghapus satuan ini?'),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text(
-              'Batal',
-              style: TextStyle(color: Color(0xFF6F767E)),
+        Expanded(
+          flex: 3,
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: isSmallScreen ? 14 : 16,
+              color: valueColor ?? const Color(0xFF6F767E),
             ),
           ),
-          TextButton(
-            onPressed: () async {
-              await _controller.deleteSatuan(id);
-              Get.back();
-              if (_controller.errorMessage.value.isEmpty) {
-                _selectedSatuanId.value = null;
-                _controller.selectedSatuan.value = null;
-                _controller.resetErrorForListPage();
-                Get.snackbar(
-                  'Berhasil',
-                  'Satuan berhasil dihapus',
-                  snackPosition: SnackPosition.BOTTOM,
-                  backgroundColor: Colors.green,
-                  colorText: Colors.white,
-                  margin: const EdgeInsets.all(16),
-                  borderRadius: 12,
-                );
-              } else {
-                Get.snackbar(
-                  'Gagal',
-                  _controller.errorMessage.value,
-                  snackPosition: SnackPosition.BOTTOM,
-                  backgroundColor: Colors.red,
-                  colorText: Colors.white,
-                  margin: const EdgeInsets.all(16),
-                  borderRadius: 12,
-                );
-              }
-            },
-            child: const Text(
-              'Hapus',
-              style: TextStyle(color: Colors.red),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _tampilkanKonfirmasiPulihkan(BuildContext context, int id) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Text('Pulihkan Satuan'),
-        content: const Text('Apakah Anda yakin ingin memulihkan satuan ini?'),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text(
-              'Batal',
-              style: TextStyle(color: Color(0xFF6F767E)),
-            ),
-          ),
-          TextButton(
-            onPressed: () async {
-              await _controller.restoreSatuan(id);
-              Get.back();
-              if (_controller.errorMessage.value.isEmpty) {
-                _controller.getSatuanById(id);
-                Get.snackbar(
-                  'Berhasil',
-                  'Satuan berhasil dipulihkan',
-                  snackPosition: SnackPosition.BOTTOM,
-                  backgroundColor: Colors.green,
-                  colorText: Colors.white,
-                  margin: const EdgeInsets.all(16),
-                  borderRadius: 12,
-                );
-              } else {
-                Get.snackbar(
-                  'Gagal',
-                  _controller.errorMessage.value,
-                  snackPosition: SnackPosition.BOTTOM,
-                  backgroundColor: Colors.red,
-                  colorText: Colors.white,
-                  margin: const EdgeInsets.all(16),
-                  borderRadius: 12,
-                );
-              }
-            },
-            child: const Text(
-              'Pulihkan',
-              style: TextStyle(color: Colors.green),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _tampilkanKonfirmasiHapusPermanen(BuildContext context, int id) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Text('Hapus Satuan Secara Permanen'),
-        content: const Text(
-            'Tindakan ini tidak dapat dibatalkan. Apakah Anda yakin ingin menghapus satuan ini secara permanen?'),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text(
-              'Batal',
-              style: TextStyle(color: Color(0xFF6F767E)),
-            ),
-          ),
-          TextButton(
-            onPressed: () async {
-              await _controller.forceDeleteSatuan(id);
-              Get.back();
-              if (_controller.errorMessage.value.isEmpty) {
-                _selectedSatuanId.value = null;
-                _controller.selectedSatuan.value = null;
-                _controller.resetErrorForListPage();
-                Get.snackbar(
-                  'Berhasil',
-                  'Satuan berhasil dihapus secara permanen',
-                  snackPosition: SnackPosition.BOTTOM,
-                  backgroundColor: Colors.green,
-                  colorText: Colors.white,
-                  margin: const EdgeInsets.all(16),
-                  borderRadius: 12,
-                );
-              } else {
-                Get.snackbar(
-                  'Gagal',
-                  _controller.errorMessage.value,
-                  snackPosition: SnackPosition.BOTTOM,
-                  backgroundColor: Colors.red,
-                  colorText: Colors.white,
-                  margin: const EdgeInsets.all(16),
-                  borderRadius: 12,
-                );
-              }
-            },
-            child: const Text(
-              'Hapus Permanen',
-              style: TextStyle(color: Colors.red),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -889,7 +722,7 @@ class SatuanListPage extends StatelessWidget {
       Get.snackbar(
         'Berhasil',
         'Daftar satuan diperbarui',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
         backgroundColor: Colors.green,
         colorText: Colors.white,
         margin: const EdgeInsets.all(16),
@@ -900,7 +733,7 @@ class SatuanListPage extends StatelessWidget {
       Get.snackbar(
         'Gagal',
         'Gagal memperbarui daftar satuan',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
         backgroundColor: Colors.red,
         colorText: Colors.white,
         margin: const EdgeInsets.all(16),

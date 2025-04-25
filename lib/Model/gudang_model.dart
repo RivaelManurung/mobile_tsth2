@@ -6,6 +6,7 @@ class Gudang {
   final String? slug;
   final String? description;
   final int? userId;
+  final User? user; // Tambahkan field user
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final DateTime? deletedAt;
@@ -16,6 +17,7 @@ class Gudang {
     this.slug,
     this.description,
     this.userId,
+    this.user,
     this.createdAt,
     this.updatedAt,
     this.deletedAt,
@@ -29,6 +31,7 @@ class Gudang {
       slug: json['slug']?.toString(),
       description: json['description']?.toString(),
       userId: json['user_id'] as int?,
+      user: json['user'] != null ? User.fromJson(json['user']) : null, // Parse user
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'].toString())
           : null,
@@ -48,6 +51,7 @@ class Gudang {
       'slug': slug,
       'description': description,
       'user_id': userId,
+      'user': user?.toJson(),
       'created_at': createdAt?.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
       'deleted_at': deletedAt?.toIso8601String(),

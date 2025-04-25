@@ -4,8 +4,6 @@ import 'package:get/get.dart';
 import 'package:inventory_tsth2/controller/Auth/auth_controller.dart';
 import 'package:inventory_tsth2/controller/transaction_type_controller.dart';
 import 'package:inventory_tsth2/core/routes/routes_name.dart';
-import 'package:inventory_tsth2/screens/transaction_type/transaction_type_detail_page.dart';
-import 'package:inventory_tsth2/screens/transaction_type/transaction_type_form_page.dart';
 import 'package:pull_to_refresh_flutter3/pull_to_refresh_flutter3.dart';
 
 class TransactionTypeListPage extends StatelessWidget {
@@ -14,305 +12,50 @@ class TransactionTypeListPage extends StatelessWidget {
   final TransactionTypeController _controller = Get.put(TransactionTypeController());
   final AuthController _authController = Get.find<AuthController>();
   final RefreshController _refreshController = RefreshController();
+  final RxnInt _selectedTransactionTypeId = RxnInt();
 
   @override
   Widget build(BuildContext context) {
     final isSmallScreen = MediaQuery.of(context).size.width < 400;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFF),
-      body: SmartRefresher(
-        controller: _refreshController,
-        onRefresh: _refreshData,
-        enablePullDown: true,
-        header: const ClassicHeader(
-          idleText: 'Pull to refresh',
-          releaseText: 'Release to refresh',
-          refreshingText: 'Refreshing...',
-          completeText: 'Refresh complete',
-          failedText: 'Refresh failed',
-          textStyle: TextStyle(color: Color(0xFF6F767E)),
-        ),
-        child: CustomScrollView(
-          physics: const ClampingScrollPhysics(),
-          slivers: [
-            _buildAppBar(isSmallScreen),
-            SliverToBoxAdapter(
-              child: Column(
-                children: [
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: isSmallScreen ? 12 : 16, vertical: 8),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: TextField(
-                        controller: _controller.searchController,
-                        decoration: InputDecoration(
-                          hintText: 'Search transaction types...',
-                          hintStyle: const TextStyle(color: Color(0xFF6F767E)),
-                          prefixIcon: const Icon(Icons.search, color: Color(0xFF4E6AFF)),
-                          filled: true,
-                          fillColor: Colors.transparent,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
-                        ),
-                        style: const TextStyle(fontSize: 14, color: Color(0xFF1A1D1F)),
-                        onChanged: (value) => _controller.update(),
-                      ).animate().fadeIn(delay: 500.ms).slideY(begin: 0.2),
-                    ),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: isSmallScreen ? 12 : 16, vertical: 16),
-                    child: Obx(() {
-                      if (_controller.isLoading.value) {
-                        return const Center(
-                          child: CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation(Color(0xFF4E6AFF)),
-                          ),
-                        ).animate().fadeIn(delay: 200.ms);
-                      }
-                      if (_controller.errorMessage.value.isNotEmpty) {
-                        return Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 16),
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(14),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.error_outline,
-                                size: isSmallScreen ? 40 : 48,
-                                color: Colors.red,
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                _controller.errorMessage.value.contains('No token found')
-                                    ? 'Your session has expired. Please log in again.'
-                                    : _controller.errorMessage.value,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: isSmallScreen ? 14 : 16,
-                                  color: const Color(0xFF1A1D1F),
-                                ),
-                              ),
-                              if (_controller.errorMessage.value.contains('No token found'))
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 16.0),
-                                  child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF4E6AFF),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      minimumSize: const Size(double.infinity, 50),
-                                    ),
-                                    onPressed: () => Get.offAllNamed(RoutesName.login),
-                                    child: Text(
-                                      'Go to Login',
-                                      style: TextStyle(
-                                        fontSize: isSmallScreen ? 14 : 16,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ).animate().fadeIn(delay: 200.ms).scale(delay: 200.ms, duration: 400.ms);
-                      }
-                      if (_controller.filteredTransactionType.isEmpty) {
-                        return Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.category,
-                                size: 64,
-                                color: Colors.grey[400],
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'No transaction types found',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Add a new transaction type to start',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ).animate().fadeIn(delay: 200.ms).scale(delay: 200.ms, duration: 400.ms);
-                      }
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: EdgeInsets.only(left: isSmallScreen ? 4 : 8, bottom: 8),
-                            child: Text(
-                              'Transaction Types',
-                              style: TextStyle(
-                                fontSize: isSmallScreen ? 17 : 19,
-                                fontWeight: FontWeight.w700,
-                                color: const Color(0xFF1A1D1F),
-                              ),
-                            ),
-                          ),
-                          ..._controller.filteredTransactionType.asMap().entries.map((entry) {
-                            final index = entry.key;
-                            final transactionType = entry.value;
-                            return GestureDetector(
-                              onTap: () {
-                                Get.to(() => TransactionTypeDetailPage(), arguments: transactionType.id);
-                              },
-                              child: Container(
-                                margin: const EdgeInsets.symmetric(vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(14),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.05),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: Semantics(
-                                    label: 'Transaction Type ${transactionType.name}',
-                                    child: Row(
-                                      children: [
-                                        CircleAvatar(
-                                          backgroundColor: const Color(0xFF4E6AFF).withOpacity(0.1),
-                                          radius: 24,
-                                          child: Text(
-                                            transactionType.name.substring(0, 1).toUpperCase(),
-                                            style: const TextStyle(
-                                              color: Color(0xFF4E6AFF),
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                transactionType.name,
-                                                style: TextStyle(
-                                                  fontSize: isSmallScreen ? 16 : 18,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: const Color(0xFF1A1D1F),
-                                                ),
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                transactionType.slug ?? 'No slug',
-                                                style: TextStyle(
-                                                  fontSize: isSmallScreen ? 12 : 13,
-                                                  color: const Color(0xFF6F767E),
-                                                ),
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        const Icon(
-                                          Icons.arrow_forward_ios,
-                                          size: 16,
-                                          color: Color(0xFF6F767E),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ).animate().fadeIn(delay: (200 + index * 100).ms).slideY(
-                                  begin: 0.2,
-                                  duration: 400.ms,
-                                );
-                          }).toList(),
-                        ],
-                      );
-                    }),
-                  ),
-                  const SizedBox(height: 80), // Prevent FAB overlap
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: Container(
-        decoration: BoxDecoration(
-          color: const Color(0xFF4E6AFF),
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(4.0),
-          child: FloatingActionButton.extended(
-            onPressed: () {
-              _controller.clearForm();
-              Get.to(() => TransactionTypeFormPage());
-            },
-            label: const Text('Add Transaction Type'),
-            icon: const Icon(Icons.add),
-            backgroundColor: const Color(0xFF4E6AFF),
-            elevation: 0,
-            highlightElevation: 3,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-            extendedPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            splashColor: Colors.white.withOpacity(0.3),
-            foregroundColor: Colors.white,
-            extendedTextStyle: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
-          ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.2, duration: 400.ms),
+    return WillPopScope(
+      onWillPop: () async {
+        // Jika sedang di tampilan detail, kembali ke daftar
+        if (_selectedTransactionTypeId.value != null) {
+          _selectedTransactionTypeId.value = null;
+          return false; // Mencegah pop langsung
+        }
+        // Jika di daftar, kembali ke dashboard
+        Get.offAllNamed(RoutesName.dashboard);
+        return true;
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8FAFF),
+        body: SmartRefresher(
+          controller: _refreshController,
+          onRefresh: _refreshData,
+          enablePullDown: _selectedTransactionTypeId.value == null,
+          header: const ClassicHeader(
+            idleText: 'Tarik untuk memperbarui',
+            releaseText: 'Lepas untuk memperbarui',
+            refreshingText: 'Memperbarui...',
+            completeText: 'Pembaruan selesai',
+            failedText: 'Pembaruan gagal',
+            textStyle: TextStyle(color: Color(0xFF6F767E)),
+          ),
+          child: CustomScrollView(
+            physics: const ClampingScrollPhysics(),
+            slivers: [
+              _buildAppBar(isSmallScreen),
+              Obx(() {
+                if (_selectedTransactionTypeId.value == null) {
+                  return _buildDaftarView(context, isSmallScreen);
+                } else {
+                  return _buildDetailView(context, _selectedTransactionTypeId.value!, isSmallScreen);
+                }
+              }),
+            ],
+          ),
         ),
       ),
     );
@@ -331,19 +74,28 @@ class TransactionTypeListPage extends StatelessWidget {
         padding: const EdgeInsets.only(left: 8.0),
         child: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white, size: 28),
-          onPressed: () => Get.back(),
-          tooltip: 'Back',
+          onPressed: () {
+            // Jika sedang di tampilan detail, kembali ke daftar
+            if (_selectedTransactionTypeId.value != null) {
+              _selectedTransactionTypeId.value = null;
+            } else {
+              // Jika di daftar, kembali ke dashboard
+              Get.offAllNamed(RoutesName.dashboard);
+            }
+          },
+          tooltip: 'Kembali',
         ).animate().fadeIn(delay: 300.ms).scale(),
       ),
       actions: [
-        Padding(
-          padding: const EdgeInsets.only(right: 8.0),
-          child: IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white, size: 28),
-            onPressed: () => _refreshData(),
-            tooltip: 'Refresh Data',
-          ).animate().fadeIn(delay: 300.ms).scale(),
-        ),
+        if (_selectedTransactionTypeId.value == null)
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: IconButton(
+              icon: const Icon(Icons.refresh, color: Colors.white, size: 28),
+              onPressed: () => _refreshData(),
+              tooltip: 'Segarkan Data',
+            ).animate().fadeIn(delay: 300.ms).scale(),
+          ),
       ],
       flexibleSpace: FlexibleSpaceBar(
         collapseMode: CollapseMode.parallax,
@@ -383,7 +135,7 @@ class TransactionTypeListPage extends StatelessWidget {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Transaction Type Management',
+                          'Manajemen Tipe Transaksi',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: isSmallScreen ? 24 : 28,
@@ -402,7 +154,7 @@ class TransactionTypeListPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Manage your transaction types with ease',
+                    'Lihat daftar tipe transaksi Anda',
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.9),
                       fontSize: isSmallScreen ? 14 : 16,
@@ -418,13 +170,415 @@ class TransactionTypeListPage extends StatelessWidget {
     );
   }
 
+  SliverToBoxAdapter _buildDaftarView(BuildContext context, bool isSmallScreen) {
+    return SliverToBoxAdapter(
+      child: Column(
+        children: [
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: isSmallScreen ? 12 : 16, vertical: 8),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: TextField(
+                controller: _controller.searchController,
+                decoration: InputDecoration(
+                  hintText: 'Cari tipe transaksi...',
+                  hintStyle: const TextStyle(color: Color(0xFF6F767E)),
+                  prefixIcon: const Icon(Icons.search, color: Color(0xFF4E6AFF)),
+                  filled: true,
+                  fillColor: Colors.transparent,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                ),
+                style: const TextStyle(fontSize: 14, color: Color(0xFF1A1D1F)),
+                onChanged: (value) => _controller.update(),
+              ).animate().fadeIn(delay: 500.ms).slideY(begin: 0.2),
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: isSmallScreen ? 12 : 16,
+              vertical: 16,
+            ),
+            child: Obx(() {
+              if (_controller.isLoading.value) {
+                return const Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation(Color(0xFF4E6AFF)),
+                  ),
+                ).animate().fadeIn(delay: 200.ms);
+              }
+              if (_controller.errorMessage.value.isNotEmpty) {
+                return Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        size: isSmallScreen ? 40 : 48,
+                        color: Colors.red,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _controller.errorMessage.value.contains('No token found')
+                            ? 'Sesi Anda telah berakhir. Silakan masuk kembali.'
+                            : _controller.errorMessage.value,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: isSmallScreen ? 14 : 16,
+                          color: const Color(0xFF1A1D1F),
+                        ),
+                      ),
+                      if (_controller.errorMessage.value.contains('No token found'))
+                        Padding(
+                          padding: const EdgeInsets.only(top: 16.0),
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF4E6AFF),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              minimumSize: const Size(double.infinity, 50),
+                            ),
+                            onPressed: () => Get.offAllNamed(RoutesName.login),
+                            child: Text(
+                              'Ke Halaman Masuk',
+                              style: TextStyle(
+                                fontSize: isSmallScreen ? 14 : 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ).animate().fadeIn(delay: 200.ms).scale(delay: 200.ms, duration: 400.ms);
+              }
+              if (_controller.filteredTransactionType.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.swap_horiz,
+                        size: 64,
+                        color: Colors.grey[400],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Tidak ada tipe transaksi ditemukan',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ).animate().fadeIn(delay: 200.ms).scale(delay: 200.ms, duration: 400.ms);
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: EdgeInsets.only(left: isSmallScreen ? 4 : 8, bottom: 8),
+                    child: Text(
+                      'Daftar Tipe Transaksi',
+                      style: TextStyle(
+                        fontSize: isSmallScreen ? 17 : 19,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF1A1D1F),
+                      ),
+                    ),
+                  ),
+                  ..._controller.filteredTransactionType.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final transactionType = entry.value;
+                    return GestureDetector(
+                      onTap: () {
+                        _selectedTransactionTypeId.value = transactionType.id;
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                          border: Border.all(
+                            color: const Color(0xFF4E6AFF).withOpacity(0.1),
+                            width: 1,
+                          ),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Semantics(
+                            label: 'Tipe Transaksi ${transactionType.name}',
+                            child: Row(
+                              children: [
+                                CircleAvatar(
+                                  backgroundColor: const Color(0xFF4E6AFF).withOpacity(0.1),
+                                  radius: 24,
+                                  child: Text(
+                                    transactionType.name.substring(0, 1).toUpperCase(),
+                                    style: const TextStyle(
+                                      color: Color(0xFF4E6AFF),
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        transactionType.name,
+                                        style: TextStyle(
+                                          fontSize: isSmallScreen ? 16 : 18,
+                                          fontWeight: FontWeight.w700,
+                                          color: const Color(0xFF1A1D1F),
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        transactionType.slug ?? 'Tidak ada slug',
+                                        style: TextStyle(
+                                          fontSize: isSmallScreen ? 12 : 13,
+                                          color: const Color(0xFF6F767E),
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.arrow_forward_ios,
+                                  size: 16,
+                                  color: Color(0xFF6F767E),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ).animate().fadeIn(delay: (200 + index * 100).ms).slideY(
+                          begin: 0.2,
+                          duration: 400.ms,
+                        );
+                  }).toList(),
+                ],
+              );
+            }),
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  SliverToBoxAdapter _buildDetailView(BuildContext context, int transactionTypeId, bool isSmallScreen) {
+    final transactionType = _controller.filteredTransactionType.firstWhere(
+      (type) => type.id == transactionTypeId,
+      orElse: () => _controller.filteredTransactionType.first,
+    );
+
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: isSmallScreen ? 12 : 16,
+          vertical: 16,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header Detail dengan Background Gradient
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF6A82FB), Color(0xFF4C60DB)],
+                ),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(14),
+                  topRight: Radius.circular(14),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: Colors.white.withOpacity(0.2),
+                    radius: 30,
+                    child: Text(
+                      transactionType.name.substring(0, 1).toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          transactionType.name,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            fontSize: isSmallScreen ? 20 : 24,
+                            shadows: [
+                              Shadow(
+                                color: Colors.black.withOpacity(0.2),
+                                offset: const Offset(1, 1),
+                                blurRadius: 4,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Detail Tipe Transaksi',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: isSmallScreen ? 14 : 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ).animate().fadeIn(duration: 400.ms),
+
+            // Konten Detail
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(14),
+                  bottomRight: Radius.circular(14),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildDetailRow(
+                    label: 'Nama Tipe Transaksi',
+                    value: transactionType.name,
+                    isSmallScreen: isSmallScreen,
+                  ),
+                  const Divider(height: 24),
+                  _buildDetailRow(
+                    label: 'Slug',
+                    value: transactionType.slug ?? 'Tidak ada slug',
+                    isSmallScreen: isSmallScreen,
+                  ),
+                ],
+              ),
+            ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.2),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow({
+    required String label,
+    required String value,
+    required bool isSmallScreen,
+    Color? valueColor,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          flex: 2,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: isSmallScreen ? 14 : 16,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF1A1D1F),
+            ),
+          ),
+        ),
+        Expanded(
+          flex: 3,
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: isSmallScreen ? 14 : 16,
+              color: valueColor ?? const Color(0xFF6F767E),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Future<void> _refreshData() async {
     try {
       await _controller.fetchAllTransactionType();
       _refreshController.refreshCompleted();
       Get.snackbar(
-        'Success',
-        'Transaction types updated',
+        'Berhasil',
+        'Daftar tipe transaksi diperbarui',
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.green,
         colorText: Colors.white,
@@ -434,8 +588,8 @@ class TransactionTypeListPage extends StatelessWidget {
     } catch (e) {
       _refreshController.refreshFailed();
       Get.snackbar(
-        'Failed',
-        'Failed to update transaction types',
+        'Gagal',
+        'Gagal memperbarui daftar tipe transaksi',
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.red,
         colorText: Colors.white,

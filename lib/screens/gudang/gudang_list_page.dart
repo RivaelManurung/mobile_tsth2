@@ -1,11 +1,10 @@
-// lib/screens/gudang/gudang_list_page.dart
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
 import 'package:inventory_tsth2/controller/Auth/auth_controller.dart';
 import 'package:inventory_tsth2/controller/gudang_controller.dart';
 import 'package:inventory_tsth2/core/routes/routes_name.dart';
-import 'package:inventory_tsth2/screens/gudang/gudang_form_page.dart';
 import 'package:pull_to_refresh_flutter3/pull_to_refresh_flutter3.dart';
 
 class GudangListPage extends StatelessWidget {
@@ -15,661 +14,704 @@ class GudangListPage extends StatelessWidget {
   final AuthController _authController = Get.find<AuthController>();
   final RefreshController _refreshController = RefreshController();
   final RxnInt _selectedGudangId = RxnInt();
-
-  void _showSnackbar(String title, String message, {required bool isSuccess}) {
-    Get.snackbar(
-      title,
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: isSuccess ? Colors.green : Colors.red,
-      colorText: Colors.white,
-      margin: const EdgeInsets.all(16),
-      borderRadius: 12,
-      duration: const Duration(seconds: 3),
-    );
-  }
+  final ValueNotifier<bool> _isSearchNotEmpty = ValueNotifier<bool>(false);
+  Timer? _debounce;
 
   @override
   Widget build(BuildContext context) {
     _controller.resetErrorForListPage();
+    _controller.clearSearch(); // Clear search state on page initialization
+    final isSmallScreen = MediaQuery.of(context).size.width < 400;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      appBar: AppBar(
-        title: Obx(() => Text(
-              _selectedGudangId.value == null
-                  ? 'Manajemen Gudang'
-                  : 'Detail Gudang',
-              style: const TextStyle(
-                color: Color(0xFF1A1D1F),
-                fontWeight: FontWeight.w700,
-                fontSize: 22,
-              ),
-            )),
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        elevation: 2,
-        shadowColor: Colors.black.withOpacity(0.1),
-        leading: Obx(() => _selectedGudangId.value != null
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back, color: Color(0xFF0066FF)),
-                onPressed: () {
-                  _selectedGudangId.value = null;
-                  _controller.selectedGudang.value = null;
-                  _controller.resetErrorForListPage();
-                },
-              )
-            : IconButton(
-                icon: const Icon(Icons.arrow_back, color: Color(0xFF0066FF)),
-                onPressed: () => Get.offNamed(RoutesName.dashboard),
-              )),
-        actions: [
-          if (_selectedGudangId.value == null)
-            IconButton(
-              icon: const Icon(Icons.refresh, color: Color(0xFF0066FF)),
-              onPressed: () => _refreshData(),
-            ),
-        ],
-      ),
-      body: SmartRefresher(
-        controller: _refreshController,
-        onRefresh: _refreshData,
-        enablePullDown: _selectedGudangId.value == null,
-        header: const ClassicHeader(
-          idleText: 'Tarik untuk memperbarui',
-          releaseText: 'Lepas untuk memperbarui',
-          refreshingText: 'Memperbarui...',
-          completeText: 'Pembaruan selesai',
-          failedText: 'Pembaruan gagal',
-          textStyle: TextStyle(color: Color(0xFF6F767E)),
-        ),
-        child: Obx(() {
-          if (_selectedGudangId.value == null) {
-            return _buildDaftarView(context);
-          } else {
-            return _buildDetailView(context, _selectedGudangId.value!);
-          }
-        }),
-      ),
-      floatingActionButton: Obx(() => _selectedGudangId.value == null
-          ? FloatingActionButton(
-              backgroundColor: const Color(0xFF0066FF),
-              onPressed: () async {
-                _controller.clearForm();
-                final result = await Get.to(() => GudangFormPage());
-                if (result != null) {
-                  _showSnackbar(
-                    result['success'] ? 'Berhasil' : 'Gagal',
-                    result['message'],
-                    isSuccess: result['success'],
-                  );
-                  if (result['success']) {
-                    await _controller.fetchAllGudang();
-                  }
+    _controller.searchController.addListener(() {
+      _isSearchNotEmpty.value = _controller.searchController.text.isNotEmpty;
+    });
+
+    return WillPopScope(
+      onWillPop: () async {
+        if (_selectedGudangId.value != null) {
+          _selectedGudangId.value = null;
+          _controller.selectedGudang.value = null;
+          _controller.resetErrorForListPage();
+          return false;
+        }
+        _controller.clearSearch(); // Clear search before navigating
+        Get.offAllNamed(RoutesName.dashboard);
+        return true;
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8FAFF),
+        body: SmartRefresher(
+          controller: _refreshController,
+          onRefresh: _refreshData,
+          enablePullDown: _selectedGudangId.value == null,
+          header: const ClassicHeader(
+            idleText: 'Tarik untuk memperbarui',
+            releaseText: 'Lepas untuk memperbarui',
+            refreshingText: 'Memperbarui...',
+            completeText: 'Pembaruan selesai',
+            failedText: 'Pembaruan gagal',
+            textStyle: TextStyle(color: Color(0xFF6F767E)),
+          ),
+          child: CustomScrollView(
+            physics: const ClampingScrollPhysics(),
+            slivers: [
+              _buildAppBar(isSmallScreen),
+              Obx(() {
+                if (_selectedGudangId.value == null) {
+                  return _buildDaftarView(context, isSmallScreen);
+                } else {
+                  return _buildDetailView(context, _selectedGudangId.value!, isSmallScreen);
                 }
-              },
-              child: const Icon(Icons.add, color: Colors.white),
-              elevation: 4,
-            )
-          : const SizedBox.shrink()),
-    );
-  }
-
-  Widget _buildDaftarView(BuildContext context) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: TextField(
-              controller: _controller.searchController,
-              decoration: const InputDecoration(
-                hintText: 'Cari gudang...',
-                hintStyle: TextStyle(color: Color(0xFF6F767E)),
-                prefixIcon: Icon(Icons.search, color: Color(0xFF6F767E)),
-                border: InputBorder.none,
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              ),
-              onChanged: (value) => _controller.filterGudang(),
-            ),
-          ),
-        ),
-        Expanded(
-          child: Obx(() {
-            if (_controller.isLoading.value) {
-              return const Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation(Color(0xFF0066FF)),
-                ),
-              );
-            }
-            if (_controller.errorMessage.value.isNotEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      _controller.errorMessage.value.contains('No token found')
-                          ? 'Sesi Anda telah berakhir. Silakan masuk kembali.'
-                          : _controller.errorMessage.value,
-                      style: const TextStyle(color: Colors.red),
-                      textAlign: TextAlign.center,
-                    ),
-                    if (_controller.errorMessage.value
-                        .contains('No token found'))
-                      Padding(
-                        padding: const EdgeInsets.only(top: 16.0),
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0066FF),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          onPressed: () => Get.offAllNamed(RoutesName.login),
-                          child: const Text(
-                            'Ke Halaman Masuk',
-                            style: TextStyle(color: Colors.white),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              );
-            }
-            if (_controller.filteredGudang.isEmpty) {
-              return const Center(
-                child: Text(
-                  'Tidak ada gudang ditemukan',
-                  style: TextStyle(
-                    color: Color(0xFF6F767E),
-                    fontSize: 16,
-                  ),
-                ),
-              );
-            }
-            return ListView.builder(
-              itemCount: _controller.filteredGudang.length,
-              itemBuilder: (context, index) {
-                final gudang = _controller.filteredGudang[index];
-                final stockSummary = _controller.getStockSummary(gudang.id);
-                return Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Card(
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      leading: CircleAvatar(
-                        backgroundColor:
-                            const Color(0xFF0066FF).withOpacity(0.1),
-                        radius: 24,
-                        child: Text(
-                          gudang.name.substring(0, 1).toUpperCase(),
-                          style: const TextStyle(
-                            color: Color(0xFF0066FF),
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      title: Text(
-                        gudang.name,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF1A1D1F),
-                        ),
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            gudang.description ?? 'Tidak ada deskripsi',
-                            style: const TextStyle(color: Color(0xFF6F767E)),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Tersedia: ${stockSummary['stok_tersedia']} | Dipinjam: ${stockSummary['stok_dipinjam']} | Maintenance: ${stockSummary['stok_maintenance']}',
-                            style: const TextStyle(
-                              color: Color(0xFF6F767E),
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                      trailing: const Icon(
-                        Icons.arrow_forward_ios,
-                        size: 16,
-                        color: Color(0xFF6F767E),
-                      ),
-                      onTap: () {
-                        _selectedGudangId.value = gudang.id;
-                        _controller.getGudangById(gudang.id);
-                      },
-                    ),
-                  ),
-                ).animate().fadeIn(delay: (index * 100).ms).slideX(begin: 0.2);
-              },
-            );
-          }),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDetailView(BuildContext context, int gudangId) {
-    return Obx(() {
-      if (_controller.isLoading.value) {
-        return const Center(
-          child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation(Color(0xFF0066FF)),
-          ),
-        );
-      }
-      if (_controller.errorMessage.value.isNotEmpty) {
-        return Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                _controller.errorMessage.value.contains('No token found')
-                    ? 'Sesi Anda telah berakhir. Silakan masuk kembali.'
-                    : _controller.errorMessage.value,
-                style: const TextStyle(color: Colors.red),
-                textAlign: TextAlign.center,
-              ),
-              if (_controller.errorMessage.value.contains('No token found'))
-                Padding(
-                  padding: const EdgeInsets.only(top: 16.0),
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0066FF),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onPressed: () => Get.offAllNamed(RoutesName.login),
-                    child: const Text(
-                      'Ke Halaman Masuk',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-                ),
+              }),
             ],
           ),
-        );
-      }
-      final gudang = _controller.selectedGudang.value;
-      if (gudang == null) {
-        return const Center(
-          child: Text(
-            'Gudang tidak ditemukan',
-            style: TextStyle(
-              color: Color(0xFF6F767E),
-              fontSize: 16,
+        ),
+      ),
+    );
+  }
+
+  SliverAppBar _buildAppBar(bool isSmallScreen) {
+    return SliverAppBar(
+      expandedHeight: isSmallScreen ? 120 : 140,
+      floating: false,
+      pinned: true,
+      elevation: 0,
+      backgroundColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
+      shadowColor: Colors.black.withOpacity(0.1),
+      leading: Padding(
+        padding: const EdgeInsets.only(left: 8.0),
+        child: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white, size: 28),
+          onPressed: () {
+            if (_selectedGudangId.value != null) {
+              _selectedGudangId.value = null;
+              _controller.selectedGudang.value = null;
+              _controller.resetErrorForListPage();
+            } else {
+              _controller.clearSearch(); // Clear search before navigating
+              Get.offAllNamed(RoutesName.dashboard);
+            }
+          },
+          tooltip: 'Kembali',
+        ).animate().fadeIn(delay: 300.ms).scale(),
+      ),
+      actions: [
+        if (_selectedGudangId.value == null)
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: IconButton(
+              icon: const Icon(Icons.refresh, color: Colors.white, size: 28),
+              onPressed: () => _refreshData(),
+              tooltip: 'Segarkan Data',
+            ).animate().fadeIn(delay: 300.ms).scale(),
+          ),
+      ],
+      flexibleSpace: FlexibleSpaceBar(
+        collapseMode: CollapseMode.parallax,
+        background: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF6A82FB), Color(0xFF4C60DB)],
+            ),
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 12,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: isSmallScreen ? 16 : 24,
+                vertical: 12,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.warehouse,
+                        color: Colors.white,
+                        size: 28,
+                      ).animate().fadeIn(delay: 400.ms),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Manajemen Gudang',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: isSmallScreen ? 24 : 28,
+                            fontWeight: FontWeight.w800,
+                            shadows: [
+                              Shadow(
+                                color: Colors.black.withOpacity(0.2),
+                                offset: Offset(1, 1),
+                                blurRadius: 4,
+                              ),
+                            ],
+                          ),
+                        ).animate().fadeIn(delay: 400.ms).slideX(begin: 0.2),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Lihat daftar gudang Anda',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.9),
+                      fontSize: isSmallScreen ? 14 : 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ).animate().fadeIn(delay: 500.ms).slideX(begin: 0.2),
+                ],
+              ),
             ),
           ),
-        );
-      }
+        ),
+      ),
+    );
+  }
 
-      final stockSummary = _controller.getStockSummary(gudangId);
-
-      return SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF0066FF), Color(0xFF00B0FF)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+  SliverToBoxAdapter _buildDaftarView(BuildContext context, bool isSmallScreen) {
+    return SliverToBoxAdapter(
+      child: Column(
+        children: [
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: isSmallScreen ? 12 : 16, vertical: 8),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
                   ),
-                  borderRadius: BorderRadius.circular(16),
+                ],
+              ),
+              child: TextField(
+                controller: _controller.searchController,
+                decoration: InputDecoration(
+                  hintText: 'Cari gudang...',
+                  hintStyle: const TextStyle(color: Color(0xFF6F767E)),
+                  prefixIcon: const Icon(Icons.search, color: Color(0xFF4E6AFF)),
+                  suffixIcon: ValueListenableBuilder<bool>(
+                    valueListenable: _isSearchNotEmpty,
+                    builder: (context, isNotEmpty, child) {
+                      if (isNotEmpty) {
+                        return IconButton(
+                          icon: const Icon(Icons.clear, color: Color(0xFF4E6AFF)),
+                          onPressed: () {
+                            _controller.searchController.clear();
+                            _debounce?.cancel();
+                            _controller.filterGudang();
+                          },
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
+                  filled: true,
+                  fillColor: Colors.transparent,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Row(
+                style: const TextStyle(fontSize: 14, color: Color(0xFF1A1D1F)),
+                onChanged: (value) {
+                  if (_debounce?.isActive ?? false) _debounce?.cancel();
+                  _debounce = Timer(const Duration(milliseconds: 300), () {
+                    _controller.filterGudang();
+                  });
+                },
+              ).animate().fadeIn(delay: 500.ms).slideY(begin: 0.2),
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: isSmallScreen ? 12 : 16,
+              vertical: 16,
+            ),
+            child: Obx(() {
+              if (_controller.isLoading.value && _controller.gudangList.isEmpty) {
+                return const Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation(Color(0xFF4E6AFF)),
+                  ),
+                ).animate().fadeIn(delay: 200.ms);
+              }
+              if (_controller.errorMessage.value.isNotEmpty) {
+                return Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      CircleAvatar(
-                        backgroundColor: Colors.white.withOpacity(0.2),
-                        radius: 30,
-                        child: Text(
-                          gudang.name.substring(0, 1).toUpperCase(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                          ),
+                      Icon(
+                        Icons.error_outline,
+                        size: isSmallScreen ? 40 : 48,
+                        color: Colors.red,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _controller.errorMessage.value.contains('No token found')
+                            ? 'Sesi Anda telah berakhir. Silakan masuk kembali.'
+                            : _controller.errorMessage.value,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: isSmallScreen ? 14 : 16,
+                          color: const Color(0xFF1A1D1F),
                         ),
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              gudang.name,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
+                      if (_controller.errorMessage.value.contains('No token found'))
+                        Padding(
+                          padding: const EdgeInsets.only(top: 16.0),
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF4E6AFF),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              minimumSize: const Size(double.infinity, 50),
+                            ),
+                            onPressed: () => Get.offAllNamed(RoutesName.login),
+                            child: Text(
+                              'Ke Halaman Masuk',
+                              style: TextStyle(
+                                fontSize: isSmallScreen ? 14 : 16,
+                                fontWeight: FontWeight.w600,
                                 color: Colors.white,
-                                fontSize: 20,
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              gudang.description ?? 'Tidak ada deskripsi',
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ).animate().fadeIn(delay: 200.ms).scale(delay: 200.ms, duration: 400.ms);
+              }
+              if (_controller.filteredGudang.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.warehouse,
+                        size: 64,
+                        color: Colors.grey[400],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Tidak ada gudang ditemukan',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey[600],
                         ),
                       ),
                     ],
                   ),
+                ).animate().fadeIn(delay: 200.ms).scale(delay: 200.ms, duration: 400.ms);
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: EdgeInsets.only(left: isSmallScreen ? 4 : 8, bottom: 8),
+                    child: Text(
+                      'Daftar Gudang',
+                      style: TextStyle(
+                        fontSize: isSmallScreen ? 17 : 19,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF1A1D1F),
+                      ),
+                    ),
+                  ),
+                  ..._controller.filteredGudang.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final gudang = entry.value;
+                    return GestureDetector(
+                      onTap: () {
+                        _selectedGudangId.value = gudang.id;
+                        _controller.getGudangById(gudang.id);
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                          border: Border.all(
+                            color: const Color(0xFF4E6AFF).withOpacity(0.1),
+                            width: 1,
+                          ),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Semantics(
+                            label: 'Gudang ${gudang.name}',
+                            child: Row(
+                              children: [
+                                CircleAvatar(
+                                  backgroundColor: const Color(0xFF4E6AFF).withOpacity(0.1),
+                                  radius: 24,
+                                  child: Text(
+                                    gudang.name.substring(0, 1).toUpperCase(),
+                                    style: const TextStyle(
+                                      color: Color(0xFF4E6AFF),
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        gudang.name,
+                                        style: TextStyle(
+                                          fontSize: isSmallScreen ? 16 : 18,
+                                          fontWeight: FontWeight.w700,
+                                          color: const Color(0xFF1A1D1F),
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        gudang.description ?? 'Tidak ada deskripsi',
+                                        style: TextStyle(
+                                          fontSize: isSmallScreen ? 12 : 13,
+                                          color: const Color(0xFF6F767E),
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.arrow_forward_ios,
+                                  size: 16,
+                                  color: Color(0xFF6F767E),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ).animate().fadeIn(delay: (200 + index * 100).ms).slideY(
+                          begin: 0.2,
+                          duration: 400.ms,
+                        );
+                  }).toList(),
+                ],
+              );
+            }),
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  SliverToBoxAdapter _buildDetailView(BuildContext context, int gudangId, bool isSmallScreen) {
+    return SliverToBoxAdapter(
+      child: Obx(() {
+        if (_controller.isLoading.value) {
+          return const Center(
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation(Color(0xFF4E6AFF)),
+            ),
+          ).animate().fadeIn(delay: 200.ms);
+        }
+        if (_controller.errorMessage.value.isNotEmpty) {
+          return Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
                 ),
-              ),
-            ).animate().fadeIn(duration: 400.ms),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: isSmallScreen ? 40 : 48,
+                  color: Colors.red,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  _controller.errorMessage.value.contains('No token found')
+                      ? 'Sesi Anda telah berakhir. Silakan masuk kembali.'
+                      : _controller.errorMessage.value,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: isSmallScreen ? 14 : 16,
+                    color: const Color(0xFF1A1D1F),
+                  ),
+                ),
+                if (_controller.errorMessage.value.contains('No token found'))
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16.0),
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF4E6AFF),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        minimumSize: const Size(double.infinity, 50),
+                      ),
+                      onPressed: () => Get.offAllNamed(RoutesName.login),
+                      child: Text(
+                        'Ke Halaman Masuk',
+                        style: TextStyle(
+                          fontSize: isSmallScreen ? 14 : 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ).animate().fadeIn(delay: 200.ms).scale(delay: 200.ms, duration: 400.ms);
+        }
+        final gudang = _controller.selectedGudang.value;
+        if (gudang == null) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.warehouse,
+                  size: 64,
+                  color: Colors.grey[400],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Gudang tidak ditemukan',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ).animate().fadeIn(delay: 200.ms).scale(delay: 200.ms, duration: 400.ms);
+        }
 
-            const SizedBox(height: 16),
-
-            Card(
-              elevation: 3,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
+        return Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: isSmallScreen ? 12 : 16,
+            vertical: 16,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF6A82FB), Color(0xFF4C60DB)],
+                  ),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(14),
+                    topRight: Radius.circular(14),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: Colors.white.withOpacity(0.2),
+                      radius: 30,
+                      child: Text(
+                        gudang.name.substring(0, 1).toUpperCase(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            gudang.name,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              fontSize: isSmallScreen ? 20 : 24,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black.withOpacity(0.2),
+                                  offset: const Offset(1, 1),
+                                  blurRadius: 4,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Detail Gudang',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.9),
+                              fontSize: isSmallScreen ? 14 : 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ).animate().fadeIn(duration: 400.ms),
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(14),
+                    bottomRight: Radius.circular(14),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Operator',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1A1D1F),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.person,
-                          color: Color(0xFF0066FF),
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _controller.selectedUser.value?.name ??
-                                    'Tidak ada operator',
-                                style: const TextStyle(
-                                  color: Color(0xFF1A1D1F),
-                                  fontSize: 14,
-                                ),
-                              ),
-                              if (_controller.selectedUser.value?.email != null)
-                                Text(
-                                  'Email: ${_controller.selectedUser.value!.email}',
-                                  style: const TextStyle(
-                                    color: Color(0xFF6F767E),
-                                    fontSize: 12,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ],
+                    _buildDetailRow(
+                      label: 'Nama Gudang',
+                      value: gudang.name,
+                      isSmallScreen: isSmallScreen,
                     ),
                     const Divider(height: 24),
-
-                    const Text(
-                      'Stok',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1A1D1F),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.inventory,
-                          color: Color(0xFF0066FF),
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Tersedia: ${stockSummary['stok_tersedia']}',
-                          style: const TextStyle(
-                            color: Color(0xFF1A1D1F),
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.outbox,
-                          color: Color(0xFF0066FF),
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Dipinjam: ${stockSummary['stok_dipinjam']}',
-                          style: const TextStyle(
-                            color: Color(0xFF1A1D1F),
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.build,
-                          color: Color(0xFF0066FF),
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Maintenance: ${stockSummary['stok_maintenance']}',
-                          style: const TextStyle(
-                            color: Color(0xFF1A1D1F),
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
+                    _buildDetailRow(
+                      label: 'Deskripsi',
+                      value: gudang.description ?? 'Tidak ada deskripsi',
+                      isSmallScreen: isSmallScreen,
                     ),
                     const Divider(height: 24),
-
-                    const Text(
-                      'Informasi Waktu',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1A1D1F),
-                      ),
+                    _buildDetailRow(
+                      label: 'Operator',
+                      value: _controller.selectedUser.value?.name ?? 'Tidak ada operator',
+                      isSmallScreen: isSmallScreen,
                     ),
-                    const SizedBox(height: 8),
-                    if (gudang.createdAt != null)
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.calendar_today,
-                            color: Color(0xFF0066FF),
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Dibuat: ${gudang.createdAt!.toLocal().toString().split('.')[0]}',
-                            style: const TextStyle(
-                              color: Color(0xFF1A1D1F),
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    const SizedBox(height: 8),
-                    if (gudang.updatedAt != null)
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.update,
-                            color: Color(0xFF0066FF),
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Diperbarui: ${gudang.updatedAt!.toLocal().toString().split('.')[0]}',
-                            style: const TextStyle(
-                              color: Color(0xFF1A1D1F),
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
+                    const Divider(height: 24),
+                    _buildDetailRow(
+                      label: 'Email Operator',
+                      value: _controller.selectedUser.value?.email ?? '-',
+                      isSmallScreen: isSmallScreen,
+                    ),
+                    const Divider(height: 24),
+                    _buildDetailRow(
+                      label: 'Dibuat Pada',
+                      value: gudang.createdAt?.toString() ?? '-',
+                      isSmallScreen: isSmallScreen,
+                    ),
+                    const Divider(height: 24),
+                    _buildDetailRow(
+                      label: 'Diperbarui Pada',
+                      value: gudang.updatedAt?.toString() ?? '-',
+                      isSmallScreen: isSmallScreen,
+                    ),
                   ],
                 ),
-              ),
-            ).animate().fadeIn(duration: 400.ms, delay: 100.ms),
-
-            const SizedBox(height: 24),
-
-            _buildTombolAksi(
-              icon: Icons.edit,
-              label: 'Ubah Gudang',
-              color: const Color(0xFF0066FF),
-              onPressed: () async {
-                _controller.nameController.text = gudang.name;
-                _controller.descriptionController.text =
-                    gudang.description ?? '';
-                final result = await Get.to(
-                  () => GudangFormPage(isEdit: true, gudangId: gudang.id),
-                );
-                if (result != null) {
-                  _showSnackbar(
-                    result['success'] ? 'Berhasil' : 'Gagal',
-                    result['message'],
-                    isSuccess: result['success'],
-                  );
-                  if (result['success']) {
-                    await _controller.getGudangById(gudang.id);
-                  }
-                }
-              },
-            ),
-            _buildTombolAksi(
-              icon: Icons.delete_forever,
-              label: 'Hapus Gudang',
-              color: Colors.redAccent,
-              onPressed: () => _tampilkanKonfirmasiHapus(context, gudang.id),
-            ),
-          ],
-        ),
-      );
-    });
+              ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.2),
+            ],
+          ),
+        );
+      }),
+    );
   }
 
-  Widget _buildTombolAksi({
-    required IconData icon,
+  Widget _buildDetailRow({
     required String label,
-    required Color color,
-    required VoidCallback onPressed,
+    required String value,
+    required bool isSmallScreen,
+    Color? valueColor,
   }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
-      child: ElevatedButton.icon(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          foregroundColor: Colors.white,
-          minimumSize: const Size(double.infinity, 56),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          elevation: 2,
-        ),
-        icon: Icon(icon, size: 22),
-        label: Text(
-          label,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        onPressed: onPressed,
-      ),
-    ).animate().slideY(begin: 0.3, end: 0, duration: 400.ms);
-  }
-
-  void _tampilkanKonfirmasiHapus(BuildContext context, int id) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Text('Hapus Gudang'),
-        content: const Text('Apakah Anda yakin ingin menghapus gudang ini?'),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text(
-              'Batal',
-              style: TextStyle(color: Color(0xFF6F767E)),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          flex: 2,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: isSmallScreen ? 14 : 16,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF1A1D1F),
             ),
           ),
-          TextButton(
-            onPressed: () async {
-              try {
-                await _controller.deleteGudang(id);
-                Get.back();
-                _showSnackbar('Berhasil', 'Gudang berhasil dihapus',
-                    isSuccess: true);
-                _selectedGudangId.value = null;
-                _controller.selectedGudang.value = null;
-              } catch (e) {
-                Get.back();
-                _showSnackbar('Gagal', e.toString(), isSuccess: false);
-              }
-            },
-            child: const Text(
-              'Hapus',
-              style: TextStyle(color: Colors.red),
+        ),
+        Expanded(
+          flex: 3,
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: isSmallScreen ? 14 : 16,
+              color: valueColor ?? const Color(0xFF6F767E),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -677,11 +719,26 @@ class GudangListPage extends StatelessWidget {
     try {
       await _controller.fetchAllGudang();
       _refreshController.refreshCompleted();
-      _showSnackbar('Berhasil', 'Daftar gudang diperbarui', isSuccess: true);
+      Get.snackbar(
+        'Berhasil',
+        'Daftar gudang diperbarui',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(16),
+        borderRadius: 12,
+      );
     } catch (e) {
       _refreshController.refreshFailed();
-      _showSnackbar('Gagal', 'Gagal memperbarui daftar gudang',
-          isSuccess: false);
+      Get.snackbar(
+        'Gagal',
+        'Gagal memperbarui daftar gudang',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(16),
+        borderRadius: 12,
+      );
     }
   }
 }
