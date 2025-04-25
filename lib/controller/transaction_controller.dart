@@ -53,8 +53,13 @@ class TransactionController extends GetxController {
   void onInit() {
     super.onInit();
     _setupSearchListener();
+    // Fetch data immediately on initialization
+    loadUserData();
+    fetchAllTransactions();
+    fetchTransactionTypes();
+    fetchBarangs();
 
-    // Listen to route changes to reload user data after login
+    // Listen to route changes for additional refreshes
     ever(Get.currentRoute.obs, (route) {
       if (route == RoutesName.dashboard) {
         print('Route changed to dashboard, reloading user data');
@@ -170,7 +175,7 @@ class TransactionController extends GetxController {
       errorMessage('');
       final types = await _transactionTypeService.getAllTransactionType();
       transactionTypes.assignAll(types);
-      printTransactionTypes(); // Print transaction types after fetching
+      printTransactionTypes(); // Print transaction types for debugging
     } catch (e) {
       errorMessage('Gagal memuat tipe transaksi: $e');
       showErrorSnackbar('Error', errorMessage.value);

@@ -210,246 +210,226 @@ class TransactionListPage extends StatelessWidget {
     );
   }
 
-  SliverToBoxAdapter _buildDaftarView(
-      BuildContext context, bool isSmallScreen) {
-    return SliverToBoxAdapter(
-      child: Column(
-        children: [
-          Padding(
-            padding: EdgeInsets.symmetric(
-                horizontal: isSmallScreen ? 12 : 16, vertical: 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                          color: Colors.grey[300] ?? Colors.grey, width: 1),
-                    ),
-                    child: TextField(
-                      controller: _controller.searchController,
-                      decoration: InputDecoration(
-                        hintText: 'Cari transaksi...',
-                        hintStyle: const TextStyle(color: Color(0xFF6F767E)),
-                        prefixIcon:
-                            const Icon(Icons.search, color: Color(0xFF5A67D8)),
-                        suffixIcon: ValueListenableBuilder<bool>(
-                          valueListenable: _isSearchNotEmpty,
-                          builder: (context, isNotEmpty, child) {
-                            if (isNotEmpty) {
-                              return IconButton(
-                                icon: const Icon(Icons.clear,
-                                    color: Color(0xFF5A67D8)),
-                                onPressed: () {
-                                  _controller.searchController.clear();
-                                  _controller.searchQuery.value = '';
-                                  _controller.filterTransactions();
-                                },
-                              );
-                            }
-                            return const SizedBox.shrink();
-                          },
-                        ),
-                        filled: true,
-                        fillColor: Colors.transparent,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                            vertical: 0, horizontal: 16),
-                      ),
-                      style: const TextStyle(
-                          fontSize: 14, color: Color(0xFF1A1D1F)),
-                      onChanged: (value) {
-                        _controller.searchQuery.value = value;
-                        _controller.filterTransactions();
-                      },
-                    ),
-                  ).animate().fadeIn(delay: 500.ms).slideY(begin: 0.2),
-                ),
-                const SizedBox(width: 12),
-                Material(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  elevation: 1,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(12),
-                    onTap: () {
-                      Get.bottomSheet(
-                        _buildFilterBottomSheet(),
-                        backgroundColor: Colors.white,
-                        shape: const RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.vertical(top: Radius.circular(24)),
-                        ),
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      child: const Icon(
-                        Icons.filter_list_rounded,
-                        color: Color(0xFF5A67D8),
-                        size: 24,
-                      ),
-                    ),
-                  ).animate().fadeIn(delay: 500.ms).scale(),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: EdgeInsets.symmetric(
-                horizontal: isSmallScreen ? 12 : 16, vertical: 8),
-            child: GestureDetector(
-              onTap: () {
-                _isAddingTransaction.value = true;
-              },
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF5A67D8),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF4C51BF), width: 1),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Row(
-                      children: [
-                        SizedBox(width: 12),
-                        Text(
-                          'Tambah Transaksi Baru',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Icon(
-                      Icons.arrow_forward_ios,
-                      color: Colors.white.withOpacity(0.7),
-                      size: 16,
-                    ),
-                  ],
-                ),
-              ),
-            ).animate().fadeIn(delay: 600.ms).scale(),
-          ),
-          Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: isSmallScreen ? 12 : 16,
-              vertical: 16,
-            ),
-            child: Obx(() {
-              if (_controller.isLoading.value &&
-                  _controller.transactionList.isEmpty) {
-                return const Center(
-                  child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation(Color(0xFF5A67D8)),
-                  ),
-                ).animate().fadeIn(delay: 200.ms);
-              }
-              if (_controller.errorMessage.value.isNotEmpty) {
-                return Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 16),
-                  padding: const EdgeInsets.all(24),
+SliverToBoxAdapter _buildDaftarView(BuildContext context, bool isSmallScreen) {
+  return SliverToBoxAdapter(
+    child: Column(
+      children: [
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: isSmallScreen ? 12 : 16, vertical: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                        color: Colors.grey[300] ?? Colors.grey, width: 1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey[300] ?? Colors.grey, width: 1),
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'Terjadi Kesalahan',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFFF44336),
-                        ),
+                  child: TextField(
+                    controller: _controller.searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Cari transaksi...',
+                      hintStyle: const TextStyle(color: Color(0xFF6F767E)),
+                      prefixIcon: const Icon(Icons.search, color: Color(0xFF5A67D8)),
+                      suffixIcon: ValueListenableBuilder<bool>(
+                        valueListenable: _isSearchNotEmpty,
+                        builder: (context, isNotEmpty, child) {
+                          if (isNotEmpty) {
+                            return IconButton(
+                              icon: const Icon(Icons.clear, color: Color(0xFF5A67D8)),
+                              onPressed: () {
+                                _controller.searchController.clear();
+                                _controller.searchQuery.value = '';
+                                _controller.filterTransactions();
+                              },
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
                       ),
-                      const SizedBox(height: 16),
-                      Text(
-                        _controller.errorMessage.value,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: isSmallScreen ? 14 : 16,
-                          color: const Color(0xFF1A1D1F),
-                        ),
+                      filled: true,
+                      fillColor: Colors.transparent,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
                       ),
-                    ],
+                      contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                    ),
+                    style: const TextStyle(fontSize: 14, color: Color(0xFF1A1D1F)),
+                    onChanged: (value) {
+                      _controller.searchQuery.value = value;
+                      _controller.filterTransactions();
+                    },
                   ),
-                )
-                    .animate()
-                    .fadeIn(delay: 200.ms)
-                    .scale(delay: 200.ms, duration: 400.ms);
-              }
-              if (_controller.transactionList.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text(
-                        'Tidak Ada Transaksi',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF6F767E),
-                        ),
+                ).animate().fadeIn(delay: 500.ms).slideY(begin: 0.2),
+              ),
+              const SizedBox(width: 12),
+              Material(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                elevation: 1,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () {
+                    Get.bottomSheet(
+                      _buildFilterBottomSheet(),
+                      backgroundColor: Colors.white,
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Tambah transaksi untuk memulai',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    child: const Icon(
+                      Icons.filter_list_rounded,
+                      color: Color(0xFF5A67D8),
+                      size: 24,
+                    ),
                   ),
-                )
-                    .animate()
-                    .fadeIn(delay: 200.ms)
-                    .scale(delay: 200.ms, duration: 400.ms);
-              }
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                ).animate().fadeIn(delay: 500.ms).scale(),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: isSmallScreen ? 12 : 16, vertical: 8),
+          child: GestureDetector(
+            onTap: () {
+              _isAddingTransaction.value = true;
+            },
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF5A67D8),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF4C51BF), width: 1),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Padding(
-                    padding:
-                        EdgeInsets.only(left: isSmallScreen ? 4 : 8, bottom: 8),
-                    child: Text(
-                      'Daftar Transaksi',
+                  const Row(
+                    children: [
+                      SizedBox(width: 12),
+                      Text(
+                        'Tambah Transaksi Baru',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    color: Colors.white.withOpacity(0.7),
+                    size: 16,
+                  ),
+                ],
+              ),
+            ),
+          ).animate().fadeIn(delay: 600.ms).scale(),
+        ),
+        Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: isSmallScreen ? 12 : 16,
+            vertical: 16,
+          ),
+          child: Obx(() {
+            if (_controller.isLoading.value) {
+              return const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation(Color(0xFF5A67D8)),
+                ),
+              ).animate().fadeIn(delay: 200.ms);
+            }
+            if (_controller.errorMessage.value.isNotEmpty) {
+              return Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.grey[300] ?? Colors.grey, width: 1),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Terjadi Kesalahan',
                       style: TextStyle(
-                        fontSize: isSmallScreen ? 17 : 19,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFFF44336),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      _controller.errorMessage.value,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: isSmallScreen ? 14 : 16,
                         color: const Color(0xFF1A1D1F),
                       ),
                     ),
+                  ],
+                ),
+              ).animate().fadeIn(delay: 200.ms).scale(delay: 200.ms, duration: 400.ms);
+            }
+            if (_controller.transactionList.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'Tidak Ada Transaksi',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF6F767E),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Tambah transaksi untuk memulai',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ).animate().fadeIn(delay: 200.ms).scale(delay: 200.ms, duration: 400.ms);
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: EdgeInsets.only(left: isSmallScreen ? 4 : 8, bottom: 8),
+                  child: Text(
+                    'Daftar Transaksi',
+                    style: TextStyle(
+                      fontSize: isSmallScreen ? 17 : 19,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF1A1D1F),
+                    ),
                   ),
-                  ..._controller.transactionList.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final transaction = entry.value;
-                    return _buildTransactionCard(
-                        transaction, index, isSmallScreen);
-                  }).toList(),
-                ],
-              );
-            }),
-          ),
-          const SizedBox(height: 16),
-        ],
-      ),
-    );
-  }
-
+                ),
+                ..._controller.transactionList.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final transaction = entry.value;
+                  return _buildTransactionCard(transaction, index, isSmallScreen);
+                }).toList(),
+              ],
+            );
+          }),
+        ),
+        const SizedBox(height: 16),
+      ],
+    ),
+  );
+}
   Widget _buildFilterBottomSheet() {
     return Padding(
       padding: const EdgeInsets.all(20),
