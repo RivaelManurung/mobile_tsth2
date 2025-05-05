@@ -58,6 +58,7 @@ class TransactionListPage extends StatelessWidget {
       _isSearchNotEmpty.value = _controller.searchController.text.isNotEmpty;
     });
 
+    // ignore: deprecated_member_use
     return WillPopScope(
       onWillPop: () async {
         if (_selectedTransactionId.value != null) {

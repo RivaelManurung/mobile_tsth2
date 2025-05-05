@@ -17,7 +17,7 @@ class UserService {
     AuthService? authService,
   })  : _dio = dio ??
             Dio(BaseOptions(
-              baseUrl: 'http://192.168.224.64:8000/api',
+              baseUrl: 'http://192.168.162.64:8000/api',
               headers: {'Accept': 'application/json'},
             )),
         _authService = authService ?? AuthService() {

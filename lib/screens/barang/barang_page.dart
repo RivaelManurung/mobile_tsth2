@@ -311,7 +311,10 @@ class BarangListPage extends StatelessWidget {
                       padding: const EdgeInsets.all(16),
                       child: Row(
                         children: [
-                          _buildItemImage(barang.barangGambar),
+                          GestureDetector(
+                            onTap: () => _showImageDialog(context, barang.barangGambar),
+                            child: _buildItemImage(barang.barangGambar),
+                          ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
@@ -583,19 +586,22 @@ class BarangListPage extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Center(
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(14),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
+                      child: GestureDetector(
+                        onTap: () => _showImageDialog(context, barang.barangGambar),
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: _buildDetailImage(barang.barangGambar),
                         ),
-                        child: _buildDetailImage(barang.barangGambar),
                       ),
                     ),
                     _buildDetailRow(
@@ -714,6 +720,62 @@ class BarangListPage extends StatelessWidget {
           ),
         );
       }),
+    );
+  }
+
+  void _showImageDialog(BuildContext context, String? imageUrl) {
+    if (imageUrl == null || imageUrl.isEmpty) {
+      Get.snackbar(
+        'Info',
+        'Tidak ada gambar untuk ditampilkan',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.grey,
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(16),
+        borderRadius: 12,
+      );
+      return;
+    }
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.black.withOpacity(0.8),
+        insetPadding: const EdgeInsets.all(16),
+        child: Stack(
+          children: [
+            InteractiveViewer(
+              minScale: 0.1,
+              maxScale: 4.0,
+              child: CachedNetworkImage(
+                imageUrl: imageUrl,
+                width: double.infinity,
+                height: MediaQuery.of(context).size.height * 0.8,
+                fit: BoxFit.contain,
+                placeholder: (context, url) => const Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation(Colors.white),
+                  ),
+                ),
+                errorWidget: (context, url, error) => const Center(
+                  child: Icon(
+                    Icons.broken_image,
+                    size: 80,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white, size: 32),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

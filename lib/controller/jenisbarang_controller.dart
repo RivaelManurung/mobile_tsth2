@@ -13,6 +13,7 @@ class JenisBarangController extends GetxController {
   final Rx<JenisBarang?> selectedJenisBarang = Rx<JenisBarang?>(null);
   final RxBool isLoading = false.obs;
   final RxString errorMessage = ''.obs;
+  final RxString listErrorMessage = ''.obs; // Added for list-specific errors
   final RxString searchQuery = ''.obs;
 
   // Form controllers
@@ -49,13 +50,13 @@ class JenisBarangController extends GetxController {
   Future<void> fetchAllJenisBarang() async {
     try {
       isLoading(true);
-      errorMessage('');
+      listErrorMessage(''); // Clear list-specific error
       final jenisBarang = await _service.getAllJenisBarang();
       jenisBarangList.assignAll(jenisBarang);
       filterJenisBarang();
     } catch (e) {
-      errorMessage(e.toString());
-      if (errorMessage.value.contains('No token found')) {
+      listErrorMessage(e.toString()); // Set list-specific error
+      if (listErrorMessage.value.contains('No token found')) {
         Get.offAllNamed(RoutesName.login);
       }
     } finally {
@@ -66,11 +67,11 @@ class JenisBarangController extends GetxController {
   Future<void> getJenisBarangById(int id) async {
     try {
       isLoading(true);
-      errorMessage('');
+      errorMessage(''); // Clear general error for detail view
       final jenisBarang = await _service.getJenisBarangById(id);
       selectedJenisBarang(jenisBarang);
     } catch (e) {
-      errorMessage(e.toString());
+      errorMessage(e.toString()); // Set general error for detail view
       if (errorMessage.value.contains('No token found')) {
         Get.offAllNamed(RoutesName.login);
       }
@@ -208,5 +209,9 @@ class JenisBarangController extends GetxController {
     searchQuery.value = '';
     errorMessage('');
     selectedJenisBarang(null);
+  }
+
+  void resetErrorForListPage() {
+    listErrorMessage(''); // Reset list-specific error
   }
 }

@@ -26,6 +26,8 @@ class JenisBarang {
     );
   }
 
+  get deletedAt => null;
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,
