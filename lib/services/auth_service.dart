@@ -5,7 +5,7 @@ import 'package:inventory_tsth2/config/api.dart';
 
 class AuthService {
   final Dio _dio;
-  late final FlutterSecureStorage _storage; // Use late initialization
+  late final FlutterSecureStorage _storage;
 
   AuthService({
     Dio? dio,
@@ -15,16 +15,16 @@ class AuthService {
               baseUrl: baseUrl,
               headers: {'Accept': 'application/json'},
             )) {
-    _storage = storage ?? FlutterSecureStorage(); // Initialize at runtime, not const
+    _storage = storage ?? FlutterSecureStorage();
   }
 
   // Login API call
-  Future<Map<String, dynamic>> login(String email, String password) async {
+  Future<Map<String, dynamic>> login(String name, String password) async {
     try {
       final response = await _dio.post(
-        '/auth/login',
+        '/auth/login', // Updated endpoint
         data: {
-          'email': email,
+          'name': name, // Changed from 'email' to 'name'
           'password': password,
         },
         options: Options(
@@ -47,7 +47,7 @@ class AuthService {
 
         // Store token and user data securely
         await _storage.write(key: 'auth_token', value: token);
-        await _storage.write(key: 'user', value: jsonEncode(user)); // Serialize user data to JSON
+        await _storage.write(key: 'user', value: jsonEncode(user));
 
         return {
           'success': true,
@@ -64,7 +64,8 @@ class AuthService {
     } on DioException catch (e) {
       return {
         'success': false,
-        'message': e.response?.data['message'] ?? 'Error connecting to server: ${e.message}',
+        'message': e.response?.data['message'] ??
+            'Error connecting to server: ${e.message}',
       };
     } catch (e) {
       return {
@@ -78,17 +79,17 @@ class AuthService {
   Future<bool> verifyToken(String token) async {
     try {
       final response = await _dio.get(
-        '/auth/user',
+        '/auth/user', // Updated endpoint
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
-      if (response.statusCode == 200) {
-        // Optionally update user data if the API returns it
-        if (response.data['data'] != null && response.data['data']['user'] != null) {
-          await _storage.write(key: 'user', value: jsonEncode(response.data['data']['user']));
+      if (response.statusCode == 200 && response.data['status'] == 'success') {
+        // Update user data if returned
+        if (response.data['data'] != null) {
+          await _storage.write(
+              key: 'user', value: jsonEncode(response.data['data']));
         }
         return true;
       } else {
-        // Clear stored data if token is invalid
         await _storage.delete(key: 'auth_token');
         await _storage.delete(key: 'user');
         return false;
@@ -118,11 +119,10 @@ class AuthService {
     if (token != null) {
       try {
         await _dio.post(
-          '/auth/logout',
+          '/auth/logout', // Updated endpoint
           options: Options(headers: {'Authorization': 'Bearer $token'}),
         );
       } on DioException catch (e) {
-        // Ignore logout errors, but log for debugging
         print('Logout error: ${e.response?.data['message'] ?? e.message}');
       }
     }

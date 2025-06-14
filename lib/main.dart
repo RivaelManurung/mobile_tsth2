@@ -49,7 +49,7 @@ class App extends StatelessWidget {
 
         return GetMaterialApp(
           debugShowCheckedModeBanner: false,
-          initialRoute: isLoggedIn ? RoutesName.main : RoutesName.login,
+          initialRoute: isLoggedIn ? RoutesName.main : RoutesName.onboarding,
           onGenerateRoute: Routes.onGenerateRoute,
           theme: ThemeData(
             canvasColor: Colors.white,

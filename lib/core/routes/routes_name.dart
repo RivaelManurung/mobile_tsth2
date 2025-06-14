@@ -12,7 +12,7 @@ class RoutesName {
   static const String barangCategoryList = "/barang-category-list";
   static const String transactionList = "/transaction-list";
   static const String transactionTypeList = "/transaction-type-list";
-
+  static const String onboarding = "/onboarding";
   // Detail routes for each entity
   static const String satuanDetail = "/satuan-detail"; // For SatuanDetailPage
   static const String barangCategoryDetail =

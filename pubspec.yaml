@@ -58,6 +58,8 @@ dev_dependencies:
   cached_network_image: ^3.2.3
   provider: ^6.0.0
   barcode_scan2: ^4.5.1
+  google_fonts: ^6.1.0
+  flutter_staggered_grid_view: ^0.7.0 
   # encourage good coding practices. The lint set provided by the package is
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint

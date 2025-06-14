@@ -11,8 +11,8 @@ class AuthController extends GetxController {
   final RxString errorMessage = ''.obs;
   final Rx<Map<String, dynamic>?> user = Rx<Map<String, dynamic>?>(null);
 
-  // Form controllers (temporary, will move to LoginPage)
-  final TextEditingController emailController = TextEditingController();
+  // Form controllers
+  final TextEditingController nameController = TextEditingController(); // Changed from emailController
   final TextEditingController passwordController = TextEditingController();
 
   AuthController({AuthService? authService})
@@ -34,7 +34,7 @@ class AuthController extends GetxController {
       errorMessage('');
 
       final response = await _authService.login(
-        emailController.text.trim(),
+        nameController.text.trim(), // Changed from emailController
         passwordController.text.trim(),
       );
 
@@ -65,7 +65,7 @@ class AuthController extends GetxController {
     try {
       await _authService.logout();
       user.value = null;
-      clearForm(); // Clear form fields
+      clearForm();
       Get.offAllNamed(RoutesName.login);
     } catch (e) {
       Get.snackbar('Error', 'Logout failed: $e', snackPosition: SnackPosition.BOTTOM);
@@ -73,14 +73,14 @@ class AuthController extends GetxController {
   }
 
   void clearForm() {
-    emailController.clear();
+    nameController.clear(); // Changed from emailController
     passwordController.clear();
     errorMessage('');
   }
 
   @override
   void onClose() {
-    emailController.dispose();
+    nameController.dispose(); // Changed from emailController
     passwordController.dispose();
     super.onClose();
   }

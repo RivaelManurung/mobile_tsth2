@@ -1,9 +1,32 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter/services.dart';
+import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
+import 'package:inventory_tsth2/controller/Auth/auth_controller.dart';
 import 'package:inventory_tsth2/core/routes/routes_name.dart';
 import 'package:inventory_tsth2/screens/notifikasi/notifikasi_page.dart';
-import 'package:intl/intl.dart';
+
+// Data model untuk Action Card
+class ActionCardData {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final LinearGradient gradient;
+  final String route;
+  final int delay;
+
+  const ActionCardData({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.gradient,
+    required this.route,
+    required this.delay,
+  });
+}
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -13,19 +36,98 @@ class DashboardPage extends StatefulWidget {
 }
 
 class _DashboardPageState extends State<DashboardPage> with SingleTickerProviderStateMixin {
+  final AuthController _authController = Get.find<AuthController>();
+
+  // Data untuk Action Cards
+  final List<ActionCardData> _actionCards = const [
+    ActionCardData(
+      icon: Icons.inventory_2_outlined,
+      title: 'Satuan',
+      subtitle: 'Kelola satuan',
+      gradient: LinearGradient(colors: [Color(0xFF6366F1), Color(0xFF4F46E5)]),
+      route: RoutesName.satuanList,
+      delay: 200,
+    ),
+    ActionCardData(
+      icon: Icons.category_outlined,
+      title: 'Kategori',
+      subtitle: 'Kategori barang',
+      gradient: LinearGradient(colors: [Color(0xFFF97316), Color(0xFFEA580C)]),
+      route: RoutesName.barangCategoryList,
+      delay: 300,
+    ),
+    ActionCardData(
+      icon: Icons.warehouse_outlined,
+      title: 'Gudang',
+      subtitle: 'Lokasi penyimpanan',
+      gradient: LinearGradient(colors: [Color(0xFFEF4444), Color(0xFFDC2626)]),
+      route: RoutesName.gudangList,
+      delay: 400,
+    ),
+    ActionCardData(
+      icon: Icons.straighten_outlined,
+      title: 'Barang',
+      subtitle: 'Kelola barang',
+      gradient: LinearGradient(colors: [Color(0xFF8B5CF6), Color(0xFF7C3AED)]),
+      route: RoutesName.barangList,
+      delay: 500,
+    ),
+    ActionCardData(
+      icon: Icons.swap_horiz_outlined,
+      title: 'Jenis Transaksi',
+      subtitle: 'Atur operasi',
+      gradient: LinearGradient(colors: [Color(0xFF0EA5E9), Color(0xFF0284C7)]),
+      route: RoutesName.transactionTypeList,
+      delay: 600,
+    ),
+    ActionCardData(
+      icon: Icons.label_outline,
+      title: 'Jenis Barang',
+      subtitle: 'Klasifikasi barang',
+      gradient: LinearGradient(colors: [Color(0xFFD946EF), Color(0xFFC026D3)]),
+      route: RoutesName.jenisBarangList,
+      delay: 700,
+    ),
+    ActionCardData(
+      icon: Icons.receipt_long_outlined,
+      title: 'Transaksi',
+      subtitle: 'Pergerakan barang',
+      gradient: LinearGradient(colors: [Color(0xFF14B8A6), Color(0xFF0D9488)]),
+      route: RoutesName.transactionList,
+      delay: 800,
+    ),
+  ];
+
+  // Helper Functions
   String _getGreeting() {
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Selamat Pagi';
-    if (hour < 17) return 'Selamat Siang';
+    if (hour >= 4 && hour < 11) return 'Selamat Pagi';
+    if (hour >= 11 && hour < 15) return 'Selamat Siang';
+    if (hour >= 15 && hour < 19) return 'Selamat Sore';
     return 'Selamat Malam';
   }
 
   String _getFormattedDate() {
-    return DateFormat('EEEE, d MMM yyyy', 'id_ID').format(DateTime.now());
+    return DateFormat('EEEE, d MMMM yyyy', 'id_ID').format(DateTime.now());
   }
 
   String _getFormattedTime() {
     return DateFormat('HH:mm').format(DateTime.now());
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    Intl.defaultLocale = 'id_ID';
+    _checkAuthStatus();
+  }
+
+  Future<void> _checkAuthStatus() async {
+    final isLoggedIn = await _authController.isLoggedIn();
+    if (!isLoggedIn) {
+      Get.offAllNamed(RoutesName.login);
+      Get.snackbar('Sesi Berakhir', 'Silakan masuk kembali', snackPosition: SnackPosition.BOTTOM);
+    }
   }
 
   @override
@@ -51,14 +153,9 @@ class _DashboardPageState extends State<DashboardPage> with SingleTickerProvider
             physics: const BouncingScrollPhysics(),
             slivers: [
               _buildAppBar(context, isSmallScreen),
-              _buildSectionTitle('Dashboard ', isSmallScreen),
-              _buildMainContent(
-                context,
-                isSmallScreen,
-                isMediumScreen,
-                isLargeScreen,
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 24)),
+              _buildSectionTitle('Menu Utama', isSmallScreen),
+              _buildMainContent(context, isSmallScreen, isMediumScreen, isLargeScreen),
+              const SliverToBoxAdapter(child: SizedBox(height: 30)),
             ],
           );
         },
@@ -68,89 +165,76 @@ class _DashboardPageState extends State<DashboardPage> with SingleTickerProvider
 
   SliverAppBar _buildAppBar(BuildContext context, bool isSmallScreen) {
     return SliverAppBar(
-      expandedHeight: isSmallScreen ? 180 : 200,
+      expandedHeight: isSmallScreen ? 200 : 220,
       floating: false,
       pinned: true,
       elevation: 0,
       backgroundColor: Colors.transparent,
-      surfaceTintColor: Colors.transparent,
-      shadowColor: Colors.black.withOpacity(0.1),
       flexibleSpace: FlexibleSpaceBar(
-        collapseMode: CollapseMode.pin,
+        collapseMode: CollapseMode.parallax,
         background: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Color(0xFF6366F1), Color(0xFF4338CA)],
+              colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
             ),
-            borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
+            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(30)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black12,
-                blurRadius: 16,
-                offset: Offset(0, 5),
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
           child: SafeArea(
             child: Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: isSmallScreen ? 16 : 24,
-                vertical: 16,
-              ),
+              padding: EdgeInsets.fromLTRB(isSmallScreen ? 16 : 24, 16, isSmallScreen ? 16 : 24, 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Flexible(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _getGreeting(),
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.9),
-                                fontSize: isSmallScreen ? 16 : 18,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.3,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ).animate().fadeIn(delay: 100.ms).slideX(begin: -0.2),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Inventory Pro',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: isSmallScreen ? 26 : 30,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 0.5,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ).animate().fadeIn(delay: 200.ms).slideX(begin: -0.2),
-                          ],
-                        ),
+                        child: Obx(() => Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${_getGreeting()}, ${_authController.user.value?['name'] ?? 'Pengguna'}',
+                                  style: GoogleFonts.inter(
+                                    color: Colors.white,
+                                    fontSize: isSmallScreen ? 18 : 20,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ).animate().fadeIn(delay: 200.ms).slideX(begin: -0.2),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Inventory TSTH2',
+                                  style: GoogleFonts.inter(
+                                    color: Colors.white.withOpacity(0.9),
+                                    fontSize: isSmallScreen ? 14 : 16,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ).animate().fadeIn(delay: 300.ms).slideX(begin: -0.2),
+                              ],
+                            )),
                       ),
                       Row(
                         children: [
                           _buildIconButton(
-                            icon: Icons.notifications,
+                            icon: Icons.notifications_outlined,
                             isSmallScreen: isSmallScreen,
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const NotificationPage()),
-                            ),
+                            onTap: () => Get.to(() => const NotificationPage()),
                           ),
-                          const SizedBox(width: 12),
-                          _buildIconButton(
-                            icon: Icons.person,
-                            isSmallScreen: isSmallScreen,
-                            onTap: () => _navigateTo(context, RoutesName.profile),
-                          ),
+                          const SizedBox(width: 8),
+                          _buildProfileButton(isSmallScreen),
                         ],
                       ),
                     ],
@@ -162,7 +246,7 @@ class _DashboardPageState extends State<DashboardPage> with SingleTickerProvider
                       Flexible(
                         child: Text(
                           _getFormattedDate(),
-                          style: TextStyle(
+                          style: GoogleFonts.inter(
                             color: Colors.white.withOpacity(0.9),
                             fontSize: isSmallScreen ? 14 : 15,
                             fontWeight: FontWeight.w500,
@@ -171,19 +255,25 @@ class _DashboardPageState extends State<DashboardPage> with SingleTickerProvider
                           overflow: TextOverflow.ellipsis,
                         ).animate().fadeIn(delay: 500.ms),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white.withOpacity(0.2)),
-                        ),
-                        child: Text(
-                          _getFormattedTime(),
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: isSmallScreen ? 14 : 15,
-                            fontWeight: FontWeight.w600,
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.white.withOpacity(0.2)),
+                            ),
+                            child: Text(
+                              _getFormattedTime(),
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: isSmallScreen ? 14 : 15,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
                         ),
                       ).animate().fadeIn(delay: 500.ms).scale(delay: 500.ms),
@@ -198,117 +288,32 @@ class _DashboardPageState extends State<DashboardPage> with SingleTickerProvider
     );
   }
 
-  SliverToBoxAdapter _buildSectionTitle(String title, bool isSmallScreen) {
-    return SliverToBoxAdapter(
-      child: Padding(
-        padding: EdgeInsets.only(
-          left: isSmallScreen ? 16 : 20,
-          right: isSmallScreen ? 16 : 20,
-          top: 24,
-          bottom: 12,
-        ),
-        child: Text(
-          title,
-          style: TextStyle(
-            fontSize: isSmallScreen ? 18 : 20,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF1A1D1F),
-            letterSpacing: 0.2,
-          ),
-        ),
-      ),
-    );
-  }
-
-  SliverPadding _buildMainContent(
-    BuildContext context,
-    bool isSmallScreen,
-    bool isMediumScreen,
-    bool isLargeScreen,
-  ) {
-    const actionCards = [
-      {
-        'icon': Icons.inventory_2,
-        'title': 'Satuan',
-        'subtitle': 'Kelola satuan',
-        'gradient': LinearGradient(colors: [Color(0xFF6366F1), Color(0xFF4338CA)]),
-        'route': RoutesName.satuanList,
-        'delay': 0,
-      },
-      {
-        'icon': Icons.category,
-        'title': 'Kategori',
-        'subtitle': 'Kategori barang',
-        'gradient': LinearGradient(colors: [Color(0xFFF97316), Color(0xFFEA580C)]),
-        'route': RoutesName.barangCategoryList,
-        'delay': 200,
-      },
-      {
-        'icon': Icons.warehouse,
-        'title': 'Gudang',
-        'subtitle': 'Lokasi penyimpanan',
-        'gradient': LinearGradient(colors: [Color(0xFFEF4444), Color(0xFFDC2626)]),
-        'route': RoutesName.gudangList,
-        'delay': 300,
-      },
-      {
-        'icon': Icons.straighten,
-        'title': 'Barang',
-        'subtitle': 'Kelola barang',
-        'gradient': LinearGradient(colors: [Color(0xFF8B5CF6), Color(0xFF7C3AED)]),
-        'route': RoutesName.barangList,
-        'delay': 400,
-      },
-      {
-        'icon': Icons.swap_horiz,
-        'title': 'Jenis Transaksi',
-        'subtitle': 'Atur operasi',
-        'gradient': LinearGradient(colors: [Color(0xFF0EA5E9), Color(0xFF0284C7)]),
-        'route': RoutesName.transactionTypeList,
-        'delay': 500,
-      },
-      {
-        'icon': Icons.label,
-        'title': 'Jenis Barang',
-        'subtitle': 'Klasifikasi barang',
-        'gradient': LinearGradient(colors: [Color(0xFFD946EF), Color(0xFFC026D3)]),
-        'route': RoutesName.jenisBarangList,
-        'delay': 600,
-      },
-      {
-        'icon': Icons.receipt,
-        'title': 'Transaksi',
-        'subtitle': 'Pergerakan barang',
-        'gradient': LinearGradient(colors: [Color(0xFF14B8A6), Color(0xFF0D9488)]),
-        'route': RoutesName.transactionList,
-        'delay': 700,
-      },
-    ];
-
-    return SliverPadding(
-      padding: EdgeInsets.symmetric(horizontal: isSmallScreen ? 12 : 16),
-      sliver: SliverGrid(
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: isLargeScreen ? 4 : isMediumScreen ? 3 : 2,
-          crossAxisSpacing: isSmallScreen ? 12 : 14,
-          mainAxisSpacing: isSmallScreen ? 12 : 14,
-          childAspectRatio: isSmallScreen ? 0.85 : 0.95,
-        ),
-        delegate: SliverChildListDelegate(
-          actionCards.map((card) {
-            return _buildActionCard(
-              context: context,
-              icon: card['icon'] as IconData,
-              title: card['title'] as String,
-              subtitle: card['subtitle'] as String,
-              gradient: card['gradient'] as LinearGradient,
-              isSmallScreen: isSmallScreen,
-              onTap: () => _navigateTo(context, card['route'] as String),
-              delay: card['delay'] as int,
-            );
-          }).toList(),
-        ),
-      ),
+  Widget _buildProfileButton(bool isSmallScreen) {
+    return GestureDetector(
+      onTap: () => Get.toNamed(RoutesName.profile),
+      child: Obx(() => Container(
+            width: isSmallScreen ? 42 : 48,
+            height: isSmallScreen ? 42 : 48,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withOpacity(0.2),
+              border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+              image: DecorationImage(
+                image: NetworkImage(
+                  _authController.user.value?['avatar'] ??
+                      'https://i.pravatar.cc/150?u=a042581f4e29026704d',
+                ),
+                fit: BoxFit.cover,
+              ),
+            ),
+          )).animate().fadeIn(delay: 400.ms).scale(duration: 400.ms, curve: Curves.easeOutBack),
     );
   }
 
@@ -320,66 +325,111 @@ class _DashboardPageState extends State<DashboardPage> with SingleTickerProvider
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: isSmallScreen ? 40 : 46,
-        height: isSmallScreen ? 40 : 46,
+        width: isSmallScreen ? 42 : 48,
+        height: isSmallScreen ? 42 : 48,
         decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.15),
           borderRadius: BorderRadius.circular(14),
-          gradient: LinearGradient(
-            colors: [Colors.white.withOpacity(0.3), Colors.white.withOpacity(0.1)],
-          ),
           border: Border.all(color: Colors.white.withOpacity(0.2), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Icon(
           icon,
           color: Colors.white,
-          size: isSmallScreen ? 20 : 22,
+          size: isSmallScreen ? 22 : 24,
         ),
-      ).animate().fadeIn(delay: 300.ms).scale(duration: 300.ms),
+      ).animate().fadeIn(delay: 400.ms).scale(duration: 400.ms, curve: Curves.easeOutBack),
+    );
+  }
+
+  SliverToBoxAdapter _buildSectionTitle(String title, bool isSmallScreen) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(isSmallScreen ? 20 : 24, 24, isSmallScreen ? 20 : 24, 16),
+        child: Text(
+          title,
+          style: GoogleFonts.inter(
+            fontSize: isSmallScreen ? 18 : 20,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF1A1D1F),
+          ),
+        ).animate().fadeIn(delay: 600.ms, duration: 400.ms),
+      ),
+    );
+  }
+
+  SliverPadding _buildMainContent(
+    BuildContext context,
+    bool isSmallScreen,
+    bool isMediumScreen,
+    bool isLargeScreen,
+  ) {
+    return SliverPadding(
+      padding: EdgeInsets.symmetric(horizontal: isSmallScreen ? 16 : 20),
+      sliver: SliverGrid(
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: isLargeScreen ? 4 : (isMediumScreen ? 3 : 2),
+          crossAxisSpacing: isSmallScreen ? 12 : 16,
+          mainAxisSpacing: isSmallScreen ? 12 : 16,
+          childAspectRatio: isSmallScreen ? 0.85 : 0.9,
+        ),
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            final card = _actionCards[index];
+            return _buildActionCard(
+              context: context,
+              data: card,
+              isSmallScreen: isSmallScreen,
+              onTap: () => Get.toNamed(card.route),
+            );
+          },
+          childCount: _actionCards.length,
+        ),
+      ),
     );
   }
 
   Widget _buildActionCard({
     required BuildContext context,
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required LinearGradient gradient,
+    required ActionCardData data,
     required bool isSmallScreen,
     required VoidCallback onTap,
-    required int delay,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+              color: data.gradient.colors.last.withOpacity(0.1),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           child: Stack(
             children: [
-              Positioned(
-                right: -20,
-                top: -20,
+              Positioned.fill(
                 child: Container(
-                  width: 80,
-                  height: 80,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                       colors: [
-                        gradient.colors.first.withOpacity(0.05),
-                        gradient.colors.last.withOpacity(0.05),
+                        Colors.white,
+                        data.gradient.colors.last.withOpacity(0.05),
                       ],
                     ),
-                    shape: BoxShape.circle,
                   ),
                 ),
               ),
@@ -387,48 +437,53 @@ class _DashboardPageState extends State<DashboardPage> with SingleTickerProvider
                 padding: EdgeInsets.all(isSmallScreen ? 14 : 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Container(
-                      width: isSmallScreen ? 40 : 46,
-                      height: isSmallScreen ? 40 : 46,
+                      width: isSmallScreen ? 42 : 48,
+                      height: isSmallScreen ? 42 : 48,
                       decoration: BoxDecoration(
-                        gradient: gradient,
-                        borderRadius: BorderRadius.circular(12),
+                        gradient: data.gradient,
+                        borderRadius: BorderRadius.circular(14),
                         boxShadow: [
                           BoxShadow(
-                            color: gradient.colors.last.withOpacity(0.2),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
+                            color: data.gradient.colors.last.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
                           ),
                         ],
                       ),
                       child: Icon(
-                        icon,
+                        data.icon,
                         color: Colors.white,
-                        size: isSmallScreen ? 20 : 22,
+                        size: isSmallScreen ? 22 : 24,
                       ),
                     ),
-                    const Spacer(),
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: isSmallScreen ? 16 : 17,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF1A1D1F),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: isSmallScreen ? 13 : 14,
-                        color: const Color(0xFF6F767E),
-                        fontWeight: FontWeight.w400,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          data.title,
+                          style: GoogleFonts.inter(
+                            fontSize: isSmallScreen ? 16 : 17,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF1A1D1F),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          data.subtitle,
+                          style: GoogleFonts.inter(
+                            fontSize: isSmallScreen ? 13 : 14,
+                            color: const Color(0xFF6F767E),
+                            fontWeight: FontWeight.w400,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -436,27 +491,17 @@ class _DashboardPageState extends State<DashboardPage> with SingleTickerProvider
             ],
           ),
         ),
-      ).animate().fadeIn(delay: Duration(milliseconds: delay)).slideY(begin: 0.2, duration: 300.ms).then().scale(
-            begin: Offset(1.0, 1.0),
-            end: Offset(0.98, 0.98),
-            duration: 100.ms,
-            curve: Curves.easeIn,
-          ).scale(
-            begin: Offset(0.98, 0.98),
-            end: Offset(1.0, 1.0),
-            duration: 100.ms,
+      ).animate(
+        effects: [
+          FadeEffect(delay: data.delay.ms, duration: 400.ms),
+          SlideEffect(
+            begin: const Offset(0, 0.3),
+            delay: data.delay.ms,
+            duration: 400.ms,
             curve: Curves.easeOut,
-         ),
+          ),
+        ],
+      ),
     );
-  }
-
-  void _navigateTo(BuildContext context, String route) {
-    try {
-      Navigator.pushNamed(context, route);
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal navigasi ke $route')),
-      );
-    }
   }
 }
