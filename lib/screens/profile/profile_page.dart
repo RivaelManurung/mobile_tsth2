@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
@@ -20,6 +21,9 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<User>? _userFuture;
   bool _isLoading = true;
   String? _errorMessage;
+
+  // Color palette to match DashboardPage
+  final Color primaryColor = const Color(0xFF4F46E5);
 
   @override
   void initState() {
@@ -64,7 +68,8 @@ class _ProfilePageState extends State<ProfilePage> {
       context: context,
       builder: (context) {
         return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           child: Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -210,7 +215,7 @@ class _ProfilePageState extends State<ProfilePage> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 20, vertical: 12),
+                                horizontal: true ? 20 : 30, vertical: 12),
                           ),
                           onPressed: () {
                             Navigator.pushNamedAndRemoveUntil(
@@ -260,79 +265,64 @@ class _ProfilePageState extends State<ProfilePage> {
       backgroundColor: Colors.transparent,
       flexibleSpace: FlexibleSpaceBar(
         collapseMode: CollapseMode.pin,
-        background: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF6366F1), Color(0xFF4338CA)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
-          ),
-          child: FutureBuilder<User>(
-            future: _userFuture,
-            builder: (context, snapshot) {
-              final user = snapshot.data ?? User.empty();
-              return SafeArea(
-                child: Stack(
-                  children: [
-                    Positioned(
-                      right: -50,
-                      top: -50,
-                      child: Container(
-                        width: 200,
-                        height: 200,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withOpacity(0.1),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      left: -30,
-                      bottom: 80,
-                      child: Container(
-                        width: 100,
-                        height: 100,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withOpacity(0.1),
-                        ),
-                      ),
-                    ),
-                    Align(
-                      alignment: Alignment.bottomCenter,
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 30),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _buildProfileAvatar(user, isSmallScreen),
-                            const SizedBox(height: 12),
-                            Text(
-                              user.name,
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: isSmallScreen ? 22 : 24,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ).animate().fadeIn(delay: 200.ms),
-                            const SizedBox(height: 4),
-                            Text(
-                              user.email,
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.9),
-                                fontSize: isSmallScreen ? 14 : 16,
-                              ),
-                            ).animate().fadeIn(delay: 300.ms),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+        background: ClipRRect(
+          borderRadius:
+              const BorderRadius.vertical(bottom: Radius.circular(24)),
+          child: Stack(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [primaryColor, primaryColor.withOpacity(0.6)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
                 ),
-              );
-            },
+              ),
+              BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                child: Container(
+                  color: Colors.white.withOpacity(0.08),
+                  child: FutureBuilder<User>(
+                    future: _userFuture,
+                    builder: (context, snapshot) {
+                      final user = snapshot.data ?? User.empty();
+                      return SafeArea(
+                        child: Align(
+                          alignment: Alignment.bottomCenter,
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 30),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _buildProfileAvatar(user, isSmallScreen),
+                                const SizedBox(height: 12),
+                                Text(
+                                  user.name,
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: isSmallScreen ? 22 : 24,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ).animate().fadeIn(delay: 200.ms),
+                                const SizedBox(height: 4),
+                                Text(
+                                  user.email!,
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.9),
+                                    fontSize: isSmallScreen ? 14 : 16,
+                                  ),
+                                ).animate().fadeIn(delay: 300.ms),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -340,34 +330,37 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildProfileAvatar(User user, bool isSmallScreen) {
-    return Hero(
-      tag: 'profile-avatar',
-      child: Container(
-        width: isSmallScreen ? 100 : 120,
-        height: isSmallScreen ? 100 : 120,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.white.withOpacity(0.3), width: 3),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+    return GestureDetector(
+      onTap: () => _navigateToEditProfile(context),
+      child: Hero(
+        tag: 'profile-avatar',
+        child: Container(
+          width: isSmallScreen ? 100 : 120,
+          height: isSmallScreen ? 100 : 120,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white.withOpacity(0.3), width: 3),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: ClipOval(
+            child: user.photoUrl != null && user.photoUrl!.isNotEmpty
+                ? Image.network(
+                    _controller.getPhotoUrl(user.photoUrl!),
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) =>
+                        _buildInitialsAvatar(user, isSmallScreen),
+                  )
+                : _buildInitialsAvatar(user, isSmallScreen),
+          ),
         ),
-        child: ClipOval(
-          child: user.photoUrl != null && user.photoUrl!.isNotEmpty
-              ? Image.network(
-                  _controller.getPhotoUrl(user.photoUrl!),
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) =>
-                      _buildInitialsAvatar(user, isSmallScreen),
-                )
-              : _buildInitialsAvatar(user, isSmallScreen),
-        ),
-      ),
-    ).animate().scale(delay: 100.ms).fadeIn();
+      ).animate().scale(delay: 100.ms).fadeIn(),
+    );
   }
 
   Widget _buildInitialsAvatar(User user, bool isSmallScreen) {
@@ -448,7 +441,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ],
           ),
-        ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.2);
+        ).animate().fadeIn(delay: 200.ms).scaleY(begin: 0.2);
       },
     );
   }
@@ -471,7 +464,8 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: Colors.white, size: isSmallScreen ? 18 : 20),
+            child:
+                Icon(icon, color: Colors.white, size: isSmallScreen ? 18 : 20),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -541,7 +535,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ],
       ),
-    ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.2);
+    ).animate().fadeIn(delay: 300.ms).scaleY(begin: 0.2);
   }
 
   Widget _buildActionItem({
@@ -564,8 +558,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child:
-                  Icon(icon, color: Colors.white, size: isSmallScreen ? 18 : 20),
+              child: Icon(icon,
+                  color: Colors.white, size: isSmallScreen ? 18 : 20),
             ),
             const SizedBox(width: 12),
             Text(
@@ -615,7 +609,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ),
       ),
-    ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.2);
+    ).animate().fadeIn(delay: 400.ms).scaleY(begin: 0.2);
   }
 
   Future<void> _navigateToEditProfile(BuildContext context) async {
@@ -655,7 +649,8 @@ class _ProfilePageState extends State<ProfilePage> {
       context: context,
       builder: (context) {
         return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           child: Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(

@@ -1,6 +1,5 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -8,8 +7,10 @@ import 'package:intl/intl.dart';
 import 'package:inventory_tsth2/controller/Auth/auth_controller.dart';
 import 'package:inventory_tsth2/core/routes/routes_name.dart';
 import 'package:inventory_tsth2/screens/notifikasi/notifikasi_page.dart';
+import 'package:auto_size_text/auto_size_text.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
-// Data model untuk Action Card
+// Data model for Action Card
 class ActionCardData {
   final IconData icon;
   final String title;
@@ -35,16 +36,21 @@ class DashboardPage extends StatefulWidget {
   State<DashboardPage> createState() => _DashboardPageState();
 }
 
-class _DashboardPageState extends State<DashboardPage> with SingleTickerProviderStateMixin {
+class _DashboardPageState extends State<DashboardPage>
+    with WidgetsBindingObserver {
   final AuthController _authController = Get.find<AuthController>();
 
-  // Data untuk Action Cards
-  final List<ActionCardData> _actionCards = const [
+  final Color primaryColor = const Color(0xFF4F46E5);
+  final Color accentColor = const Color(0xFF34D399);
+  final Color backgroundColor = const Color(0xFFF9FAFB);
+
+  final List<ActionCardData> _actionCards = [
     ActionCardData(
       icon: Icons.inventory_2_outlined,
       title: 'Satuan',
       subtitle: 'Kelola satuan',
-      gradient: LinearGradient(colors: [Color(0xFF6366F1), Color(0xFF4F46E5)]),
+      gradient:
+          const LinearGradient(colors: [Color(0xFF6366F1), Color(0xFF4338CA)]),
       route: RoutesName.satuanList,
       delay: 200,
     ),
@@ -52,7 +58,8 @@ class _DashboardPageState extends State<DashboardPage> with SingleTickerProvider
       icon: Icons.category_outlined,
       title: 'Kategori',
       subtitle: 'Kategori barang',
-      gradient: LinearGradient(colors: [Color(0xFFF97316), Color(0xFFEA580C)]),
+      gradient:
+          const LinearGradient(colors: [Color(0xFFF472B6), Color(0xFFDB2777)]),
       route: RoutesName.barangCategoryList,
       delay: 300,
     ),
@@ -60,7 +67,8 @@ class _DashboardPageState extends State<DashboardPage> with SingleTickerProvider
       icon: Icons.warehouse_outlined,
       title: 'Gudang',
       subtitle: 'Lokasi penyimpanan',
-      gradient: LinearGradient(colors: [Color(0xFFEF4444), Color(0xFFDC2626)]),
+      gradient:
+          const LinearGradient(colors: [Color(0xFF22D3EE), Color(0xFF06B6D4)]),
       route: RoutesName.gudangList,
       delay: 400,
     ),
@@ -68,7 +76,8 @@ class _DashboardPageState extends State<DashboardPage> with SingleTickerProvider
       icon: Icons.straighten_outlined,
       title: 'Barang',
       subtitle: 'Kelola barang',
-      gradient: LinearGradient(colors: [Color(0xFF8B5CF6), Color(0xFF7C3AED)]),
+      gradient:
+          const LinearGradient(colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)]),
       route: RoutesName.barangList,
       delay: 500,
     ),
@@ -76,7 +85,8 @@ class _DashboardPageState extends State<DashboardPage> with SingleTickerProvider
       icon: Icons.swap_horiz_outlined,
       title: 'Jenis Transaksi',
       subtitle: 'Atur operasi',
-      gradient: LinearGradient(colors: [Color(0xFF0EA5E9), Color(0xFF0284C7)]),
+      gradient:
+          const LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFD97706)]),
       route: RoutesName.transactionTypeList,
       delay: 600,
     ),
@@ -84,7 +94,8 @@ class _DashboardPageState extends State<DashboardPage> with SingleTickerProvider
       icon: Icons.label_outline,
       title: 'Jenis Barang',
       subtitle: 'Klasifikasi barang',
-      gradient: LinearGradient(colors: [Color(0xFFD946EF), Color(0xFFC026D3)]),
+      gradient:
+          const LinearGradient(colors: [Color(0xFF14B8A6), Color(0xFF0D9488)]),
       route: RoutesName.jenisBarangList,
       delay: 700,
     ),
@@ -92,13 +103,13 @@ class _DashboardPageState extends State<DashboardPage> with SingleTickerProvider
       icon: Icons.receipt_long_outlined,
       title: 'Transaksi',
       subtitle: 'Pergerakan barang',
-      gradient: LinearGradient(colors: [Color(0xFF14B8A6), Color(0xFF0D9488)]),
+      gradient:
+          const LinearGradient(colors: [Color(0xFFEF4444), Color(0xFFDC2626)]),
       route: RoutesName.transactionList,
       delay: 800,
     ),
   ];
 
-  // Helper Functions
   String _getGreeting() {
     final hour = DateTime.now().hour;
     if (hour >= 4 && hour < 11) return 'Selamat Pagi';
@@ -119,32 +130,55 @@ class _DashboardPageState extends State<DashboardPage> with SingleTickerProvider
   void initState() {
     super.initState();
     Intl.defaultLocale = 'id_ID';
+    WidgetsBinding.instance.addObserver(this);
     _checkAuthStatus();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkAuthStatus();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   Future<void> _checkAuthStatus() async {
     final isLoggedIn = await _authController.isLoggedIn();
     if (!isLoggedIn) {
       Get.offAllNamed(RoutesName.login);
-      Get.snackbar('Sesi Berakhir', 'Silakan masuk kembali', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'Sesi Berakhir',
+        'Silakan masuk kembali',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.shade600,
+        colorText: Colors.white,
+        borderRadius: 10,
+        margin: const EdgeInsets.all(16),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
     SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
+      SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
+        systemNavigationBarColor: backgroundColor,
       ),
     );
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFF),
+      backgroundColor: backgroundColor,
       extendBodyBehindAppBar: true,
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final screenWidth = constraints.maxWidth;
           final isSmallScreen = screenWidth < 400;
           final isMediumScreen = screenWidth >= 400 && screenWidth <= 600;
           final isLargeScreen = screenWidth > 600;
@@ -154,8 +188,9 @@ class _DashboardPageState extends State<DashboardPage> with SingleTickerProvider
             slivers: [
               _buildAppBar(context, isSmallScreen),
               _buildSectionTitle('Menu Utama', isSmallScreen),
-              _buildMainContent(context, isSmallScreen, isMediumScreen, isLargeScreen),
-              const SliverToBoxAdapter(child: SizedBox(height: 30)),
+              _buildMainContent(context, isSmallScreen, isMediumScreen,
+                  isLargeScreen), // PERUBAHAN DI SINI
+              const SliverToBoxAdapter(child: SizedBox(height: 40)),
             ],
           );
         },
@@ -165,155 +200,216 @@ class _DashboardPageState extends State<DashboardPage> with SingleTickerProvider
 
   SliverAppBar _buildAppBar(BuildContext context, bool isSmallScreen) {
     return SliverAppBar(
-      expandedHeight: isSmallScreen ? 200 : 220,
+      expandedHeight: isSmallScreen ? 130 : 150,
       floating: false,
       pinned: true,
       elevation: 0,
       backgroundColor: Colors.transparent,
       flexibleSpace: FlexibleSpaceBar(
         collapseMode: CollapseMode.parallax,
-        background: Container(
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
-            ),
-            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(30)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
+        background: ClipRRect(
+          borderRadius:
+              const BorderRadius.vertical(bottom: Radius.circular(24)),
+          child: Stack(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [primaryColor, primaryColor.withOpacity(0.6)],
+                  ),
+                ),
               ),
-            ],
-          ),
-          child: SafeArea(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(isSmallScreen ? 16 : 24, 16, isSmallScreen ? 16 : 24, 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Flexible(
-                        child: Obx(() => Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '${_getGreeting()}, ${_authController.user.value?['name'] ?? 'Pengguna'}',
-                                  style: GoogleFonts.inter(
-                                    color: Colors.white,
-                                    fontSize: isSmallScreen ? 18 : 20,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ).animate().fadeIn(delay: 200.ms).slideX(begin: -0.2),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Inventory TSTH2',
-                                  style: GoogleFonts.inter(
-                                    color: Colors.white.withOpacity(0.9),
-                                    fontSize: isSmallScreen ? 14 : 16,
-                                    fontWeight: FontWeight.w400,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ).animate().fadeIn(delay: 300.ms).slideX(begin: -0.2),
-                              ],
-                            )),
-                      ),
-                      Row(
+              BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                child: Container(
+                  color: Colors.white.withOpacity(0.08),
+                  child: SafeArea(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(isSmallScreen ? 10 : 14, 6,
+                          isSmallScreen ? 10 : 14, 6),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          _buildIconButton(
-                            icon: Icons.notifications_outlined,
-                            isSmallScreen: isSmallScreen,
-                            onTap: () => Get.to(() => const NotificationPage()),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Obx(() => Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        AutoSizeText(
+                                          '${_getGreeting()}, ${_authController.user.value?['name'] ?? 'Guest'}',
+                                          style: GoogleFonts.poppins(
+                                            color: Colors.white,
+                                            fontSize: isSmallScreen ? 14 : 18,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          maxLines: 1,
+                                          minFontSize: 10,
+                                          overflow: TextOverflow.ellipsis,
+                                        )
+                                            .animate()
+                                            .fadeIn(delay: 200.ms)
+                                            .slideY(begin: -0.2),
+                                        const SizedBox(height: 2),
+                                        AutoSizeText(
+                                          'Inventory TSTH2',
+                                          style: GoogleFonts.poppins(
+                                            color:
+                                                Colors.white.withOpacity(0.85),
+                                            fontSize: isSmallScreen ? 9 : 11,
+                                            fontWeight: FontWeight.w400,
+                                          ),
+                                          maxLines: 1,
+                                          minFontSize: 7,
+                                          overflow: TextOverflow.ellipsis,
+                                        )
+                                            .animate()
+                                            .fadeIn(delay: 300.ms)
+                                            .slideY(begin: -0.2),
+                                      ],
+                                    )),
+                              ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  _buildIconButton(
+                                    icon: Icons.notifications_outlined,
+                                    isSmallScreen: isSmallScreen,
+                                    onTap: () =>
+                                        Get.to(() => const NotificationPage()),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  _buildProfileButton(isSmallScreen),
+                                ],
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 8),
-                          _buildProfileButton(isSmallScreen),
+                          const SizedBox(height: 6),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: AutoSizeText(
+                                  _getFormattedDate(),
+                                  style: GoogleFonts.poppins(
+                                    color: Colors.white.withOpacity(0.9),
+                                    fontSize: isSmallScreen ? 9 : 11,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  maxLines: 1,
+                                  minFontSize: 7,
+                                  overflow: TextOverflow.ellipsis,
+                                )
+                                    .animate()
+                                    .fadeIn(delay: 400.ms)
+                                    .slideY(begin: 0.1),
+                              ),
+                              _buildGlassTimeChip(isSmallScreen),
+                            ],
+                          ),
                         ],
                       ),
-                    ],
+                    ),
                   ),
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          _getFormattedDate(),
-                          style: GoogleFonts.inter(
-                            color: Colors.white.withOpacity(0.9),
-                            fontSize: isSmallScreen ? 14 : 15,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ).animate().fadeIn(delay: 500.ms),
-                      ),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.white.withOpacity(0.2)),
-                            ),
-                            child: Text(
-                              _getFormattedTime(),
-                              style: GoogleFonts.inter(
-                                color: Colors.white,
-                                fontSize: isSmallScreen ? 14 : 15,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ).animate().fadeIn(delay: 500.ms).scale(delay: 500.ms),
-                    ],
-                  ),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
         ),
       ),
     );
   }
 
+  Widget _buildGlassTimeChip(bool isSmallScreen) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.white.withOpacity(0.3)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 6,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.access_time,
+                size: isSmallScreen ? 10 : 12,
+                color: Colors.white.withOpacity(0.9),
+              ),
+              const SizedBox(width: 3),
+              AutoSizeText(
+                _getFormattedTime(),
+                style: GoogleFonts.poppins(
+                  color: Colors.white,
+                  fontSize: isSmallScreen ? 9 : 11,
+                  fontWeight: FontWeight.w600,
+                ),
+                maxLines: 1,
+                minFontSize: 7,
+              ),
+            ],
+          ),
+        ),
+      ),
+    ).animate().fadeIn(delay: 500.ms).scale(begin: const Offset(0.8, 0.8));
+  }
+
   Widget _buildProfileButton(bool isSmallScreen) {
     return GestureDetector(
-      onTap: () => Get.toNamed(RoutesName.profile),
+      onTap: () {
+        HapticFeedback.lightImpact();
+        Get.toNamed(RoutesName.profile);
+      },
       child: Obx(() => Container(
-            width: isSmallScreen ? 42 : 48,
-            height: isSmallScreen ? 42 : 48,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white.withOpacity(0.2),
-              border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
+                width: isSmallScreen ? 36 : 42,
+                height: isSmallScreen ? 36 : 42,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withOpacity(0.1),
+                  border: Border.all(
+                      color: accentColor.withOpacity(0.5), width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: accentColor.withOpacity(0.2),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-              ],
-              image: DecorationImage(
-                image: NetworkImage(
-                  _authController.user.value?['avatar'] ??
-                      'https://i.pravatar.cc/150?u=a042581f4e29026704d',
+                child: ClipOval(
+                  child: Image(
+                    image: _authController.user.value?['avatar'] != null &&
+                            _authController.user.value!['avatar'].isNotEmpty
+                        ? NetworkImage(_authController.user.value!['avatar'])
+                        : const AssetImage('assets/images/default_profile.png')
+                            as ImageProvider,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Image.asset(
+                        'assets/images/default_profile.png',
+                        fit: BoxFit.cover),
+                  ),
                 ),
-                fit: BoxFit.cover,
-              ),
-            ),
-          )).animate().fadeIn(delay: 400.ms).scale(duration: 400.ms, curve: Curves.easeOutBack),
+              ))
+          .animate()
+          .fadeIn(delay: 400.ms)
+          .scale(duration: 600.ms, curve: Curves.easeOutCubic),
     );
   }
 
@@ -323,185 +419,207 @@ class _DashboardPageState extends State<DashboardPage> with SingleTickerProvider
     required VoidCallback onTap,
   }) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
       child: Container(
-        width: isSmallScreen ? 42 : 48,
-        height: isSmallScreen ? 42 : 48,
+        width: isSmallScreen ? 36 : 42,
+        height: isSmallScreen ? 36 : 42,
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white.withOpacity(0.2), width: 1.5),
+          color: Colors.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: accentColor.withOpacity(0.4), width: 1),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 6,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
         child: Icon(
           icon,
           color: Colors.white,
-          size: isSmallScreen ? 22 : 24,
+          size: isSmallScreen ? 16 : 20,
         ),
-      ).animate().fadeIn(delay: 400.ms).scale(duration: 400.ms, curve: Curves.easeOutBack),
+      )
+          .animate()
+          .fadeIn(delay: 400.ms)
+          .scale(duration: 600.ms, curve: Curves.easeOutCubic),
     );
   }
 
   SliverToBoxAdapter _buildSectionTitle(String title, bool isSmallScreen) {
     return SliverToBoxAdapter(
       child: Padding(
-        padding: EdgeInsets.fromLTRB(isSmallScreen ? 20 : 24, 24, isSmallScreen ? 20 : 24, 16),
-        child: Text(
+        padding: EdgeInsets.fromLTRB(
+            isSmallScreen ? 12 : 16, 20, isSmallScreen ? 12 : 16, 10),
+        child: AutoSizeText(
           title,
-          style: GoogleFonts.inter(
-            fontSize: isSmallScreen ? 18 : 20,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF1A1D1F),
+          style: GoogleFonts.poppins(
+            fontSize: isSmallScreen ? 16 : 18,
+            fontWeight: FontWeight.w600,
+            color: const Color(0xFF111827),
           ),
-        ).animate().fadeIn(delay: 600.ms, duration: 400.ms),
+          maxLines: 1,
+          minFontSize: 12,
+        ).animate().fadeIn(delay: 600.ms).slideY(begin: 0.2),
       ),
     );
   }
 
-  SliverPadding _buildMainContent(
+  // =======================================================================
+  // FUNGSI UTAMA YANG DIPERBAIKI (MENGGUNAKAN WRAP)
+  // =======================================================================
+  Widget _buildMainContent(
     BuildContext context,
     bool isSmallScreen,
     bool isMediumScreen,
     bool isLargeScreen,
   ) {
-    return SliverPadding(
-      padding: EdgeInsets.symmetric(horizontal: isSmallScreen ? 16 : 20),
-      sliver: SliverGrid(
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: isLargeScreen ? 4 : (isMediumScreen ? 3 : 2),
-          crossAxisSpacing: isSmallScreen ? 12 : 16,
-          mainAxisSpacing: isSmallScreen ? 12 : 16,
-          childAspectRatio: isSmallScreen ? 0.85 : 0.9,
-        ),
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            final card = _actionCards[index];
+    final double horizontalPadding = isSmallScreen ? 12 : 16;
+    final double spacing = isSmallScreen ? 8 : 12;
+    final int crossAxisCount = isLargeScreen ? 4 : (isMediumScreen ? 3 : 2);
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    // Menghitung lebar setiap kartu secara dinamis
+    final double cardWidth = (screenWidth -
+            (horizontalPadding * 2) -
+            (spacing * (crossAxisCount - 1))) /
+        crossAxisCount;
+
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+        child: Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: _actionCards.map((card) {
             return _buildActionCard(
               context: context,
               data: card,
               isSmallScreen: isSmallScreen,
+              width: cardWidth, // Memberikan lebar yang sudah dihitung
               onTap: () => Get.toNamed(card.route),
             );
-          },
-          childCount: _actionCards.length,
+          }).toList(),
         ),
       ),
     );
   }
 
+  // =======================================================================
+  // KARTU AKSI YANG DISESUAIKAN UNTUK WRAP
+  // =======================================================================
   Widget _buildActionCard({
     required BuildContext context,
     required ActionCardData data,
     required bool isSmallScreen,
+    required double width,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: data.gradient.colors.last.withOpacity(0.1),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: Container(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
+      child: SizedBox(
+        // Menggunakan SizedBox untuk menentukan lebar
+        width: width,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.shade200,
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Stack(
+              children: [
+                Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
                         Colors.white,
-                        data.gradient.colors.last.withOpacity(0.05),
+                        data.gradient.colors.first.withOpacity(0.1),
                       ],
                     ),
                   ),
                 ),
-              ),
-              Padding(
-                padding: EdgeInsets.all(isSmallScreen ? 14 : 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      width: isSmallScreen ? 42 : 48,
-                      height: isSmallScreen ? 42 : 48,
-                      decoration: BoxDecoration(
-                        gradient: data.gradient,
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: [
-                          BoxShadow(
-                            color: data.gradient.colors.last.withOpacity(0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Icon(
-                        data.icon,
-                        color: Colors.white,
-                        size: isSmallScreen ? 22 : 24,
-                      ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          data.title,
-                          style: GoogleFonts.inter(
-                            fontSize: isSmallScreen ? 16 : 17,
-                            fontWeight: FontWeight.w700,
-                            color: const Color(0xFF1A1D1F),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                Padding(
+                  padding: EdgeInsets.all(isSmallScreen ? 12 : 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment:
+                        MainAxisAlignment.start, // Menggunakan start
+                    children: [
+                      Container(
+                        width: isSmallScreen ? 38 : 44,
+                        height: isSmallScreen ? 38 : 44,
+                        decoration: BoxDecoration(
+                          gradient: data.gradient,
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color:
+                                  data.gradient.colors.first.withOpacity(0.3),
+                              blurRadius: 5,
+                              offset: const Offset(1, 2),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          data.subtitle,
-                          style: GoogleFonts.inter(
-                            fontSize: isSmallScreen ? 13 : 14,
-                            color: const Color(0xFF6F767E),
-                            fontWeight: FontWeight.w400,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        child: Icon(
+                          data.icon,
+                          color: Colors.white,
+                          size: isSmallScreen ? 20 : 24,
                         ),
-                      ],
-                    ),
-                  ],
+                      ),
+                      const SizedBox(
+                          height: 12), // Beri jarak antara ikon dan teks
+                      AutoSizeText(
+                        data.title,
+                        style: GoogleFonts.poppins(
+                          fontSize: isSmallScreen ? 12 : 14,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF111827),
+                        ),
+                        maxLines: 2, // Izinkan judul 2 baris jika perlu
+                        minFontSize: 10,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      AutoSizeText(
+                        data.subtitle,
+                        style: GoogleFonts.poppins(
+                          fontSize: isSmallScreen ? 10 : 11,
+                          color: const Color(0xFF6B7280),
+                          fontWeight: FontWeight.w400,
+                        ),
+                        maxLines: 2,
+                        minFontSize: 8,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-      ).animate(
-        effects: [
-          FadeEffect(delay: data.delay.ms, duration: 400.ms),
-          SlideEffect(
-            begin: const Offset(0, 0.3),
-            delay: data.delay.ms,
-            duration: 400.ms,
-            curve: Curves.easeOut,
-          ),
-        ],
       ),
-    );
+    ).animate().fadeIn(delay: (data.delay).ms).scale(
+          duration: 400.ms,
+          curve: Curves.easeOutCubic,
+          begin: const Offset(0.95, 0.95),
+        );
   }
 }

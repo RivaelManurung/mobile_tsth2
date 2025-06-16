@@ -17,7 +17,7 @@ class UserService {
     AuthService? authService,
   })  : _dio = dio ??
             Dio(BaseOptions(
-              baseUrl: 'http://192.168.162.64:8000/api',
+              baseUrl: 'http://172.26.42.227:8000/api',
               headers: {'Accept': 'application/json'},
             )),
         _authService = authService ?? AuthService() {
@@ -57,7 +57,7 @@ class UserService {
 
     try {
       final response = await _dio.get(
-        '/users', // Sesuaikan dengan endpoint backend Anda untuk mengambil daftar pengguna
+        '/auth/users', // Sesuaikan dengan endpoint backend Anda untuk mengambil daftar pengguna
         options: Options(
           headers: {
             'Authorization': 'Bearer $token',
@@ -99,7 +99,7 @@ class UserService {
       });
 
       final response = await _dio.put(
-        '/users/$userId',
+        '/auth/users/$userId',
         data: formData,
         options: Options(
           headers: {
@@ -127,7 +127,7 @@ class UserService {
 
     try {
       final response = await _dio.post(
-        '/users/change-password',
+        '/auth//users/change-password',
         data: {
           'current_password': currentPassword,
           'new_password': newPassword,
