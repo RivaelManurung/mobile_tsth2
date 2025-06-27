@@ -1,7 +1,8 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:inventory_tsth2/core/routes/routes_name.dart';
 import 'package:inventory_tsth2/services/auth_service.dart';
-import 'package:flutter/material.dart';
+import 'package:inventory_tsth2/Model/user_model.dart'; // Import User model
 
 class AuthController extends GetxController {
   final AuthService _authService;
@@ -12,7 +13,7 @@ class AuthController extends GetxController {
   final Rx<Map<String, dynamic>?> user = Rx<Map<String, dynamic>?>(null);
 
   // Form controllers
-  final TextEditingController nameController = TextEditingController(); // Changed from emailController
+  final TextEditingController nameController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
   AuthController({AuthService? authService})
@@ -25,7 +26,19 @@ class AuthController extends GetxController {
   }
 
   Future<void> _loadUser() async {
-    user.value = await _authService.getUser();
+    try {
+      final userData = await _authService.getUser();
+      if (userData != null) {
+        // Convert to User object and then to Map
+        final userObj = User.fromJson(userData);
+        user.value = userObj.toMap();
+      } else {
+        user.value = null;
+      }
+    } catch (e) {
+      print('Error loading user: $e');
+      user.value = null;
+    }
   }
 
   Future<void> login() async {
@@ -34,12 +47,13 @@ class AuthController extends GetxController {
       errorMessage('');
 
       final response = await _authService.login(
-        nameController.text.trim(), // Changed from emailController
+        nameController.text.trim(),
         passwordController.text.trim(),
       );
 
       if (response['success'] == true) {
-        user.value = response['user'];
+        final userObj = User.fromJson(response['user']);
+        user.value = userObj.toMap(); // Update user with Map including 'avatar'
         Get.offAllNamed(RoutesName.dashboard);
       } else {
         errorMessage(response['message']);
@@ -51,6 +65,11 @@ class AuthController extends GetxController {
     } finally {
       isLoading(false);
     }
+  }
+
+  // New method to update user data
+  void updateUser(User updatedUser) {
+    user.value = updatedUser.toMap(); // Update the observable user
   }
 
   Future<bool> verifyToken(String token) async {
@@ -73,14 +92,14 @@ class AuthController extends GetxController {
   }
 
   void clearForm() {
-    nameController.clear(); // Changed from emailController
+    nameController.clear();
     passwordController.clear();
     errorMessage('');
   }
 
   @override
   void onClose() {
-    nameController.dispose(); // Changed from emailController
+    nameController.dispose();
     passwordController.dispose();
     super.onClose();
   }

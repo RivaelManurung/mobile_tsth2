@@ -1,6 +1,6 @@
-// lib/controller/Profile/profile_controller.dart
 import 'package:flutter/material.dart';
 import 'package:inventory_tsth2/Model/user_model.dart';
+import 'package:inventory_tsth2/config/api.dart';
 import 'package:inventory_tsth2/services/user_services.dart';
 
 class ProfileController {
@@ -15,6 +15,14 @@ class ProfileController {
 
   Future<User> updateUserProfile(User user) async {
     return await _userService.updateUser(user.id, user);
+  }
+
+  Future<User> updateAvatar(String base64Image) async {
+    return await _userService.updateAvatar(base64Image);
+  }
+
+  Future<User> deleteAvatar() async {
+    return await _userService.deleteAvatar();
   }
 
   Future<void> changePassword({
@@ -41,8 +49,8 @@ class ProfileController {
     return '';
   }
 
-  String getPhotoUrl(String? photoUrl) {
-    if (photoUrl == null || photoUrl.isEmpty) return '';
-    return '${_userService.baseUrl}/storage/$photoUrl';
+  String getPhotoUrl(String photoUrl) {
+    if (photoUrl.startsWith('http')) return photoUrl;
+    return '$baseUrl/storage/$photoUrl';
   }
 }

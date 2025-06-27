@@ -1,10 +1,12 @@
 import 'dart:ui';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:inventory_tsth2/controller/Auth/auth_controller.dart';
+import 'package:inventory_tsth2/controller/profile_controller.dart'; // Import ProfileController
 import 'package:inventory_tsth2/core/routes/routes_name.dart';
 import 'package:inventory_tsth2/screens/notifikasi/notifikasi_page.dart';
 import 'package:auto_size_text/auto_size_text.dart';
@@ -39,6 +41,7 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage>
     with WidgetsBindingObserver {
   final AuthController _authController = Get.find<AuthController>();
+  final ProfileController _profileController = Get.find<ProfileController>(); // Initialize ProfileController
 
   final Color primaryColor = const Color(0xFF4F46E5);
   final Color accentColor = const Color(0xFF34D399);
@@ -126,6 +129,17 @@ class _DashboardPageState extends State<DashboardPage>
     return DateFormat('HH:mm').format(DateTime.now());
   }
 
+  String _getInitials(String? name) {
+    if (name == null || name.isEmpty) return '';
+    final names = name.trim().split(' ');
+    if (names.length >= 2) {
+      return '${names[0][0]}${names[1][0]}'.toUpperCase();
+    } else if (names.isNotEmpty) {
+      return names[0][0].toUpperCase();
+    }
+    return '';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -188,8 +202,7 @@ class _DashboardPageState extends State<DashboardPage>
             slivers: [
               _buildAppBar(context, isSmallScreen),
               _buildSectionTitle('Menu Utama', isSmallScreen),
-              _buildMainContent(context, isSmallScreen, isMediumScreen,
-                  isLargeScreen), // PERUBAHAN DI SINI
+              _buildMainContent(context, isSmallScreen, isMediumScreen, isLargeScreen),
               const SliverToBoxAdapter(child: SizedBox(height: 40)),
             ],
           );
@@ -208,8 +221,7 @@ class _DashboardPageState extends State<DashboardPage>
       flexibleSpace: FlexibleSpaceBar(
         collapseMode: CollapseMode.parallax,
         background: ClipRRect(
-          borderRadius:
-              const BorderRadius.vertical(bottom: Radius.circular(24)),
+          borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
           child: Stack(
             children: [
               Container(
@@ -227,8 +239,7 @@ class _DashboardPageState extends State<DashboardPage>
                   color: Colors.white.withOpacity(0.08),
                   child: SafeArea(
                     child: Padding(
-                      padding: EdgeInsets.fromLTRB(isSmallScreen ? 10 : 14, 6,
-                          isSmallScreen ? 10 : 14, 6),
+                      padding: EdgeInsets.fromLTRB(isSmallScreen ? 10 : 14, 6, isSmallScreen ? 10 : 14, 6),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -239,8 +250,7 @@ class _DashboardPageState extends State<DashboardPage>
                             children: [
                               Expanded(
                                 child: Obx(() => Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         AutoSizeText(
                                           '${_getGreeting()}, ${_authController.user.value?['name'] ?? 'Guest'}',
@@ -252,26 +262,19 @@ class _DashboardPageState extends State<DashboardPage>
                                           maxLines: 1,
                                           minFontSize: 10,
                                           overflow: TextOverflow.ellipsis,
-                                        )
-                                            .animate()
-                                            .fadeIn(delay: 200.ms)
-                                            .slideY(begin: -0.2),
+                                        ).animate().fadeIn(delay: 200.ms).slideY(begin: -0.2),
                                         const SizedBox(height: 2),
                                         AutoSizeText(
                                           'Inventory TSTH2',
                                           style: GoogleFonts.poppins(
-                                            color:
-                                                Colors.white.withOpacity(0.85),
+                                            color: Colors.white.withOpacity(0.85),
                                             fontSize: isSmallScreen ? 9 : 11,
                                             fontWeight: FontWeight.w400,
                                           ),
                                           maxLines: 1,
                                           minFontSize: 7,
                                           overflow: TextOverflow.ellipsis,
-                                        )
-                                            .animate()
-                                            .fadeIn(delay: 300.ms)
-                                            .slideY(begin: -0.2),
+                                        ).animate().fadeIn(delay: 300.ms).slideY(begin: -0.2),
                                       ],
                                     )),
                               ),
@@ -281,8 +284,7 @@ class _DashboardPageState extends State<DashboardPage>
                                   _buildIconButton(
                                     icon: Icons.notifications_outlined,
                                     isSmallScreen: isSmallScreen,
-                                    onTap: () =>
-                                        Get.to(() => const NotificationPage()),
+                                    onTap: () => Get.to(() => const NotificationPage()),
                                   ),
                                   const SizedBox(width: 6),
                                   _buildProfileButton(isSmallScreen),
@@ -305,10 +307,7 @@ class _DashboardPageState extends State<DashboardPage>
                                   maxLines: 1,
                                   minFontSize: 7,
                                   overflow: TextOverflow.ellipsis,
-                                )
-                                    .animate()
-                                    .fadeIn(delay: 400.ms)
-                                    .slideY(begin: 0.1),
+                                ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.1),
                               ),
                               _buildGlassTimeChip(isSmallScreen),
                             ],
@@ -378,38 +377,66 @@ class _DashboardPageState extends State<DashboardPage>
         Get.toNamed(RoutesName.profile);
       },
       child: Obx(() => Container(
-                width: isSmallScreen ? 36 : 42,
-                height: isSmallScreen ? 36 : 42,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.1),
-                  border: Border.all(
-                      color: accentColor.withOpacity(0.5), width: 1.5),
-                  boxShadow: [
-                    BoxShadow(
-                      color: accentColor.withOpacity(0.2),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
+            width: isSmallScreen ? 36 : 42,
+            height: isSmallScreen ? 36 : 42,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withOpacity(0.1),
+              border: Border.all(color: accentColor.withOpacity(0.5), width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: accentColor.withOpacity(0.2),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: ClipOval(
+              child: _authController.user.value?['avatar'] != null &&
+                      _authController.user.value!['avatar'].isNotEmpty
+                  ? CachedNetworkImage(
+                      imageUrl: _profileController.getPhotoUrl(
+                          _authController.user.value!['avatar']), // Use getPhotoUrl
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => const CircularProgressIndicator(),
+                      errorWidget: (context, url, error) {
+                        print('Dashboard avatar load error: $error, URL: $url');
+                        return _buildInitialsAvatar(
+                          _authController.user.value?['name'] ?? 'Guest',
+                          isSmallScreen,
+                        );
+                      },
+                      cacheKey:
+                          '${_authController.user.value!['avatar']}_${DateTime.now().millisecondsSinceEpoch}',
+                    )
+                  : _buildInitialsAvatar(
+                      _authController.user.value?['name'] ?? 'Guest',
+                      isSmallScreen,
                     ),
-                  ],
-                ),
-                child: ClipOval(
-                  child: Image(
-                    image: _authController.user.value?['avatar'] != null &&
-                            _authController.user.value!['avatar'].isNotEmpty
-                        ? NetworkImage(_authController.user.value!['avatar'])
-                        : const AssetImage('assets/images/default_profile.png')
-                            as ImageProvider,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Image.asset(
-                        'assets/images/default_profile.png',
-                        fit: BoxFit.cover),
-                  ),
-                ),
-              ))
+            ),
+          ))
           .animate()
           .fadeIn(delay: 400.ms)
           .scale(duration: 600.ms, curve: Curves.easeOutCubic),
+    );
+  }
+  Widget _buildInitialsAvatar(String name, bool isSmallScreen) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [primaryColor, const Color(0xFF4338CA)],
+        ),
+      ),
+      child: Center(
+        child: Text(
+          _getInitials(name),
+          style: GoogleFonts.poppins(
+            color: Colors.white,
+            fontSize: isSmallScreen ? 14 : 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
     );
   }
 
@@ -443,18 +470,14 @@ class _DashboardPageState extends State<DashboardPage>
           color: Colors.white,
           size: isSmallScreen ? 16 : 20,
         ),
-      )
-          .animate()
-          .fadeIn(delay: 400.ms)
-          .scale(duration: 600.ms, curve: Curves.easeOutCubic),
+      ).animate().fadeIn(delay: 400.ms).scale(duration: 600.ms, curve: Curves.easeOutCubic),
     );
   }
 
   SliverToBoxAdapter _buildSectionTitle(String title, bool isSmallScreen) {
     return SliverToBoxAdapter(
       child: Padding(
-        padding: EdgeInsets.fromLTRB(
-            isSmallScreen ? 12 : 16, 20, isSmallScreen ? 12 : 16, 10),
+        padding: EdgeInsets.fromLTRB(isSmallScreen ? 12 : 16, 20, isSmallScreen ? 12 : 16, 10),
         child: AutoSizeText(
           title,
           style: GoogleFonts.poppins(
@@ -469,9 +492,6 @@ class _DashboardPageState extends State<DashboardPage>
     );
   }
 
-  // =======================================================================
-  // FUNGSI UTAMA YANG DIPERBAIKI (MENGGUNAKAN WRAP)
-  // =======================================================================
   Widget _buildMainContent(
     BuildContext context,
     bool isSmallScreen,
@@ -483,11 +503,7 @@ class _DashboardPageState extends State<DashboardPage>
     final int crossAxisCount = isLargeScreen ? 4 : (isMediumScreen ? 3 : 2);
     final screenWidth = MediaQuery.of(context).size.width;
 
-    // Menghitung lebar setiap kartu secara dinamis
-    final double cardWidth = (screenWidth -
-            (horizontalPadding * 2) -
-            (spacing * (crossAxisCount - 1))) /
-        crossAxisCount;
+    final double cardWidth = (screenWidth - (horizontalPadding * 2) - (spacing * (crossAxisCount - 1))) / crossAxisCount;
 
     return SliverToBoxAdapter(
       child: Padding(
@@ -500,7 +516,7 @@ class _DashboardPageState extends State<DashboardPage>
               context: context,
               data: card,
               isSmallScreen: isSmallScreen,
-              width: cardWidth, // Memberikan lebar yang sudah dihitung
+              width: cardWidth,
               onTap: () => Get.toNamed(card.route),
             );
           }).toList(),
@@ -509,9 +525,6 @@ class _DashboardPageState extends State<DashboardPage>
     );
   }
 
-  // =======================================================================
-  // KARTU AKSI YANG DISESUAIKAN UNTUK WRAP
-  // =======================================================================
   Widget _buildActionCard({
     required BuildContext context,
     required ActionCardData data,
@@ -525,7 +538,6 @@ class _DashboardPageState extends State<DashboardPage>
         onTap();
       },
       child: SizedBox(
-        // Menggunakan SizedBox untuk menentukan lebar
         width: width,
         child: Container(
           decoration: BoxDecoration(
@@ -559,8 +571,7 @@ class _DashboardPageState extends State<DashboardPage>
                   padding: EdgeInsets.all(isSmallScreen ? 12 : 14),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment:
-                        MainAxisAlignment.start, // Menggunakan start
+                    mainAxisAlignment: MainAxisAlignment.start,
                     children: [
                       Container(
                         width: isSmallScreen ? 38 : 44,
@@ -570,8 +581,7 @@ class _DashboardPageState extends State<DashboardPage>
                           borderRadius: BorderRadius.circular(10),
                           boxShadow: [
                             BoxShadow(
-                              color:
-                                  data.gradient.colors.first.withOpacity(0.3),
+                              color: data.gradient.colors.first.withOpacity(0.3),
                               blurRadius: 5,
                               offset: const Offset(1, 2),
                             ),
@@ -583,8 +593,7 @@ class _DashboardPageState extends State<DashboardPage>
                           size: isSmallScreen ? 20 : 24,
                         ),
                       ),
-                      const SizedBox(
-                          height: 12), // Beri jarak antara ikon dan teks
+                      const SizedBox(height: 12),
                       AutoSizeText(
                         data.title,
                         style: GoogleFonts.poppins(
@@ -592,7 +601,7 @@ class _DashboardPageState extends State<DashboardPage>
                           fontWeight: FontWeight.w600,
                           color: const Color(0xFF111827),
                         ),
-                        maxLines: 2, // Izinkan judul 2 baris jika perlu
+                        maxLines: 2,
                         minFontSize: 10,
                         overflow: TextOverflow.ellipsis,
                       ),

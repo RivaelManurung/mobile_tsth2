@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:inventory_tsth2/controller/profile_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:inventory_tsth2/controller/Auth/auth_controller.dart';
 import 'package:inventory_tsth2/core/routes/routes.dart';
@@ -12,10 +13,11 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize date formatting for the 'id_ID' locale
-  await initializeDateFormatting('id_ID', null);  
+  await initializeDateFormatting('id_ID', null);
 
   // Initialize SharedPreferences
-  final SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+  final SharedPreferences sharedPreferences =
+      await SharedPreferences.getInstance();
 
   // Register SharedPreferences with GetX
   Get.put<SharedPreferences>(sharedPreferences, permanent: true);
@@ -23,6 +25,7 @@ void main() async {
   // Initialize AuthService and AuthController
   Get.put(AuthService(), permanent: true);
   Get.put(AuthController(), permanent: true);
+  Get.put(ProfileController(), permanent: true); // Register ProfileController
 
   runApp(const App());
 }

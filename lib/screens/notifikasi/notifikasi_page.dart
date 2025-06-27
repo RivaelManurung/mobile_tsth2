@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:get/get.dart';
+import 'package:inventory_tsth2/controller/notifikasi_controller.dart';
 
 class NotificationPage extends StatelessWidget {
   const NotificationPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final NotificationController controller = Get.put(NotificationController());
     final isSmallScreen = MediaQuery.of(context).size.width < 400;
 
     return Scaffold(
@@ -48,122 +51,162 @@ class NotificationPage extends StatelessWidget {
             fontWeight: FontWeight.w800,
           ),
         ).animate().fadeIn(delay: 400.ms).slideX(begin: 0.2),
-      ),
-      body: ListView(
-        padding: EdgeInsets.symmetric(horizontal: isSmallScreen ? 12 : 16, vertical: 16),
-        children: [
-          _buildNotificationItem(
-            icon: Icons.add_circle,
-            title: 'Barang Baru Ditambahkan',
-            description: 'Laptop ASUS TUF Gaming A15 telah ditambahkan ke inventaris.',
-            time: '10 menit lalu',
-            color: const Color(0xFF4E6AFF),
-            isSmallScreen: isSmallScreen,
-            delay: 0,
-          ),
-          _buildNotificationItem(
-            icon: Icons.swap_horiz,
-            title: 'Barang Dipindahkan',
-            description: 'Proyektor dipindahkan ke Gudang B.',
-            time: '2 jam lalu',
-            color: const Color(0xFF00C4A3),
-            isSmallScreen: isSmallScreen,
-            delay: 100,
-          ),
-          _buildNotificationItem(
-            icon: Icons.remove_circle,
-            title: 'Barang Dihapus',
-            description: 'Kursi kantor - 2 unit telah dihapus dari inventaris.',
-            time: '5 jam lalu',
-            color: const Color(0xFFFF5252),
-            isSmallScreen: isSmallScreen,
-            delay: 200,
-          ),
-          _buildNotificationItem(
-            icon: Icons.warning,
-            title: 'Stok Rendah',
-            description: 'Stok Printer HP DeskJet hanya tersisa 3 unit.',
-            time: 'Hari ini, 09:15',
-            color: const Color(0xFFFFA726),
-            isSmallScreen: isSmallScreen,
-            delay: 300,
-          ),
-          _buildNotificationItem(
-            icon: Icons.check_circle,
-            title: 'Transaksi Berhasil',
-            description: 'Transaksi pengeluaran barang untuk proyek A selesai.',
-            time: 'Kemarin, 14:30',
-            color: const Color(0xFF4CAF50),
-            isSmallScreen: isSmallScreen,
-            delay: 400,
-          ),
+        actions: [
+          Obx(() => controller.notifications.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.done_all, color: Colors.white),
+                  onPressed: () async {
+                    await controller.markAllAsRead();
+                  },
+                  tooltip: 'Tandai Semua Dibaca',
+                ).animate().fadeIn(delay: 400.ms)
+              : const SizedBox.shrink()),
         ],
+      ),
+      body: Obx(
+        () => controller.isLoading.value
+            ? const Center(child: CircularProgressIndicator())
+            : controller.notifications.isEmpty
+                ? const Center(child: Text('Tidak ada notifikasi'))
+                : ListView.builder(
+                    padding: EdgeInsets.symmetric(horizontal: isSmallScreen ? 12 : 16, vertical: 16),
+                    itemCount: controller.notifications.length,
+                    itemBuilder: (context, index) {
+                      final notification = controller.notifications[index];
+                      return _buildNotificationItem(
+                        id: notification['id'],
+                        title: notification['title'] ?? 'No Title',
+                        description: notification['message'] ?? 'No Message',
+                        time: _formatTime(notification['created_at']),
+                        color: _getColorForNotification(notification['title']),
+                        isSmallScreen: isSmallScreen,
+                        delay: index * 100,
+                        onTap: () => controller.markAsRead(notification['id']),
+                      );
+                    },
+                  ),
       ),
     );
   }
 
   Widget _buildNotificationItem({
-    required IconData icon,
+    required int id,
     required String title,
     required String description,
     required String time,
     required Color color,
     required bool isSmallScreen,
     required int delay,
+    required VoidCallback onTap,
   }) {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: Container(
-          width: isSmallScreen ? 40 : 44,
-          height: isSmallScreen ? 40 : 44,
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Center(
-            child: Icon(
-              icon,
-              color: color,
-              size: isSmallScreen ? 20 : 22,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          leading: Container(
+            width: isSmallScreen ? 40 : 44,
+            height: isSmallScreen ? 40 : 44,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Center(
+              child: Icon(
+                _getIconForNotification(title),
+                color: color,
+                size: isSmallScreen ? 20 : 22,
+              ),
             ),
           ),
-        ),
-        title: Text(
-          title,
-          style: TextStyle(
-            fontSize: isSmallScreen ? 14 : 15,
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF1A1D1F),
+          title: Text(
+            title,
+            style: TextStyle(
+              fontSize: isSmallScreen ? 14 : 15,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF1A1D1F),
+            ),
           ),
-        ),
-        subtitle: Text(
-          description,
-          style: TextStyle(
-            fontSize: isSmallScreen ? 12 : 13,
-            color: const Color(0xFF6F767E),
+          subtitle: Text(
+            description,
+            style: TextStyle(
+              fontSize: isSmallScreen ? 12 : 13,
+              color: const Color(0xFF6F767E),
+            ),
           ),
-        ),
-        trailing: Text(
-          time,
-          style: TextStyle(
-            fontSize: isSmallScreen ? 11 : 12,
-            color: const Color(0xFF9CA3AF),
+          trailing: Text(
+            time,
+            style: TextStyle(
+              fontSize: isSmallScreen ? 11 : 12,
+              color: const Color(0xFF9CA3AF),
+            ),
           ),
         ),
       ),
     ).animate().fadeIn(delay: Duration(milliseconds: delay)).slideX(begin: 0.1, duration: 300.ms);
+  }
+
+  // Helper to format time (you can use a package like `timeago` for better formatting)
+  String _formatTime(String? createdAt) {
+    if (createdAt == null) return 'Baru saja';
+    final dateTime = DateTime.parse(createdAt).toLocal();
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inMinutes < 60) {
+      return '${difference.inMinutes} menit lalu';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours} jam lalu';
+    } else if (difference.inDays < 2) {
+      return 'Kemarin, ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+    } else {
+      return '${difference.inDays} hari lalu';
+    }
+  }
+
+  // Helper to assign icons based on notification title
+  IconData _getIconForNotification(String title) {
+    if (title.contains('Stok Barang Habis') || title.contains('Stok Barang Minimum')) {
+      return Icons.warning;
+    } else if (title.contains('Barang Ditambahkan')) {
+      return Icons.add_circle;
+    } else if (title.contains('Barang Dipindahkan')) {
+      return Icons.swap_horiz;
+    } else if (title.contains('Barang Dihapus')) {
+      return Icons.remove_circle;
+    } else if (title.contains('Transaksi Berhasil')) {
+      return Icons.check_circle;
+    } else {
+      return Icons.notifications;
+    }
+  }
+
+  // Helper to assign colors based on notification title
+  Color _getColorForNotification(String title) {
+    if (title.contains('Stok Barang Habis') || title.contains('Stok Barang Minimum')) {
+      return const Color(0xFFFFA726);
+    } else if (title.contains('Barang Ditambahkan')) {
+      return const Color(0xFF4E6AFF);
+    } else if (title.contains('Barang Dipindahkan')) {
+      return const Color(0xFF00C4A3);
+    } else if (title.contains('Barang Dihapus')) {
+      return const Color(0xFFFF5252);
+    } else if (title.contains('Transaksi Berhasil')) {
+      return const Color(0xFF4CAF50);
+    } else {
+      return const Color(0xFF6A82FB);
+    }
   }
 }

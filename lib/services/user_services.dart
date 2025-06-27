@@ -1,4 +1,3 @@
-// lib/services/user_service.dart
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -17,7 +16,7 @@ class UserService {
     AuthService? authService,
   })  : _dio = dio ??
             Dio(BaseOptions(
-              baseUrl: 'http://172.26.42.227:8000/api',
+              baseUrl: 'http://192.168.137.1:8000/api',
               headers: {'Accept': 'application/json'},
             )),
         _authService = authService ?? AuthService() {
@@ -28,8 +27,8 @@ class UserService {
 
   Future<String?> _getToken() async {
     final token = await _authService.getToken();
-    print('Token retrieved in UserService: $token'); // Debug log
-    return token; // Langsung kembalikan token, tanpa verifikasi
+    print('Token retrieved in UserService: $token');
+    return token;
   }
 
   Future<User> getCurrentUser() async {
@@ -50,14 +49,13 @@ class UserService {
     }
   }
 
-  // Tambahkan metode untuk mengambil daftar semua pengguna
   Future<List<User>> getAllUsers() async {
     final token = await _getToken();
     if (token == null) throw Exception('No token found');
 
     try {
       final response = await _dio.get(
-        '/auth/users', // Sesuaikan dengan endpoint backend Anda untuk mengambil daftar pengguna
+        '/auth/users',
         options: Options(
           headers: {
             'Authorization': 'Bearer $token',
@@ -65,8 +63,6 @@ class UserService {
           },
         ),
       );
-
-      print('getAllUsers response: ${response.data}');
 
       if (response.statusCode == 200) {
         List<dynamic> data = response.data['data'] ?? response.data;
@@ -81,7 +77,7 @@ class UserService {
     }
   }
 
-  Future<User> updateUser(int userId, User user, {File? image}) async {
+  Future<User> updateUser(int userId, User user) async {
     final token = await _getToken();
     if (token == null) throw Exception('No token found');
 
@@ -89,17 +85,12 @@ class UserService {
       FormData formData = FormData.fromMap({
         'name': user.name,
         'email': user.email,
-        'phone': user.phone,
+        'phone': user.phoneNumber,
         'address': user.address,
-        if (image != null)
-          'photo': await MultipartFile.fromFile(
-            image.path,
-            filename: path.basename(image.path),
-          ),
       });
 
       final response = await _dio.put(
-        '/auth/users/$userId',
+        '/users/$userId',
         data: formData,
         options: Options(
           headers: {
@@ -118,6 +109,63 @@ class UserService {
     }
   }
 
+  Future<User> updateAvatar(String base64Image) async {
+    final token = await _getToken();
+    if (token == null) throw Exception('No token found');
+
+    try {
+      final response = await _dio.put(
+        '/user/avatar',
+        data: {'avatar': 'data:image/png;base64,$base64Image'},
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        return User.fromJson(response.data['data']);
+      } else {
+        throw Exception(response.data['message'] ?? 'Failed to update avatar');
+      }
+    } on DioException catch (e) {
+      print('DioException: ${e.message}');
+      if (e.response != null) {
+        print('Status code: ${e.response?.statusCode}');
+        print('Response data: ${e.response?.data}');
+      } else {
+        print('No response received');
+      }
+      throw _handleError(e);
+    }
+  }
+
+  Future<User> deleteAvatar() async {
+    final token = await _getToken();
+    if (token == null) throw Exception('No token found');
+
+    try {
+      final response = await _dio.delete(
+        '/user/avatar',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+          },
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        return User.fromJson(response.data['data']);
+      } else {
+        throw Exception(response.data['message'] ?? 'Failed to delete avatar');
+      }
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
   Future<void> changePassword({
     required String currentPassword,
     required String newPassword,
@@ -127,7 +175,7 @@ class UserService {
 
     try {
       final response = await _dio.post(
-        '/auth//users/change-password',
+        '/users/change-password',
         data: {
           'current_password': currentPassword,
           'new_password': newPassword,
@@ -168,6 +216,11 @@ class UserService {
     }
   }
 
+  String getPhotoUrl(String? photoUrl) {
+    if (photoUrl == null || photoUrl.isEmpty) return '';
+    return '$baseUrl/storage/$photoUrl';
+  }
+
   String _handleError(DioException e) {
     if (e.response?.statusCode == 401) {
       return 'No token found';
@@ -179,7 +232,6 @@ class UserService {
       if (e.response?.data['error'] != null) {
         return e.response!.data['error'];
       }
-      // Tangani error validasi Laravel
       if (e.response?.data['errors'] != null) {
         final errors = e.response!.data['errors'] as Map<String, dynamic>;
         String errorMessage = '';
@@ -192,37 +244,5 @@ class UserService {
       }
     }
     return e.message ?? 'An error occurred';
-  }
-  // Tambahkan di lib/services/user_service.dart, di dalam kelas UserService
-
-// Method untuk menghapus avatar
-  Future<User> deleteAvatar(int userId) async {
-    final token = await _getToken();
-    if (token == null) throw Exception('No token found');
-
-    try {
-      final response = await _dio.delete(
-        '/users/$userId/avatar',
-        options: Options(
-          headers: {
-            'Authorization': 'Bearer $token',
-          },
-        ),
-      );
-
-      if (response.statusCode == 200) {
-        return User.fromJson(response.data['data']);
-      } else {
-        throw Exception(response.data['message'] ?? 'Failed to delete avatar');
-      }
-    } on DioException catch (e) {
-      throw _handleError(e);
-    }
-  }
-
-// Method untuk mendapatkan URL foto
-  String getPhotoUrl(String? photoUrl) {
-    if (photoUrl == null || photoUrl.isEmpty) return '';
-    return '$baseUrl/storage/$photoUrl';
   }
 }

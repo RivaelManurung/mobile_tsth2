@@ -4,7 +4,7 @@ class User {
   final int id;
   final String name;
   final String email;
-  final String? phone;
+  final String? phoneNumber;
   final String? address;
   final String? photoUrl;
   final List<String>? roles;
@@ -14,20 +14,19 @@ class User {
     required this.id,
     required this.name,
     required this.email,
-    this.phone,
+    this.phoneNumber,
     this.address,
     this.photoUrl,
     this.roles,
     required this.createdAt,
   });
 
-  // Add this empty factory constructor
   factory User.empty() {
     return User(
       id: 0,
       name: 'Guest User',
       email: 'guest@example.com',
-      phone: null,
+      phoneNumber: null,
       address: null,
       photoUrl: null,
       roles: null,
@@ -37,32 +36,44 @@ class User {
 
   factory User.fromJson(Map<String, dynamic> json) {
     final data = json['data'] ?? json;
-    print('Parsing User JSON: $json'); // Debug print to inspect JSON
+    print('Parsing User JSON: $json');
     return User(
-      id: data['id'] as int? ?? 0, // Safe fallback for id
-      name: data['name']?.toString() ?? 'Unknown', // Safe fallback for name
-      email: data['email']?.toString() ?? 'unknown@example.com', // Fallback for missing email
-      phone: data['phone']?.toString(),
+      id: data['id'] as int? ?? 0,
+      name: data['name']?.toString() ?? 'Unknown',
+      email: data['email']?.toString() ?? 'unknown@example.com',
+      phoneNumber: data['phone_number']?.toString() ?? data['phone']?.toString(), // Handle both keys
       address: data['address']?.toString(),
-      photoUrl: data['photo_url']?.toString(),
-      roles: data['roles'] != null 
-          ? List<String>.from(data['roles'])
-          : null,
-      createdAt: DateTime.tryParse(data['created_at']?.toString() ?? '') ?? DateTime.now(), // Fallback for missing createdAt
+      photoUrl: data['photo_url']?.toString() ?? data['avatar']?.toString(),
+      roles: data['roles'] != null ? List<String>.from(data['roles']) : null,
+      createdAt: DateTime.tryParse(data['created_at']?.toString() ?? '') ?? DateTime.now(),
     );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'name': name,
+      'email': email,
+      'phone_number': phoneNumber,
+      'address': address,
+      'avatar': photoUrl,
+      'roles': roles,
+      'created_at': createdAt.toIso8601String(),
+    };
   }
 
   Map<String, dynamic> toJson() {
     return {
       'name': name,
       'email': email,
-      'phone': phone,
+      'phone_number': phoneNumber, // Use phone_number for API
       'address': address,
+      'photo_url': photoUrl,
     };
   }
 
   String get formattedJoinDate => DateFormat('MMMM dd, y').format(createdAt);
-  
+
   String getInitials() {
     final names = name.split(' ');
     if (names.length >= 2) {

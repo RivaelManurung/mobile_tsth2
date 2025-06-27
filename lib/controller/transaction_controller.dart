@@ -8,17 +8,20 @@ import 'package:inventory_tsth2/services/transaction_service.dart';
 import 'package:inventory_tsth2/services/transaction_type_service.dart';
 import 'package:inventory_tsth2/core/routes/routes_name.dart';
 import 'package:barcode_scan2/barcode_scan2.dart';
+import 'package:inventory_tsth2/widget/date_utils.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart' as secure_storage;
+import 'package:intl/intl.dart';
 
-class TransactionController extends GetxController {
+class TransactionController extends GetxService {
   final TransactionService _transactionService;
   final TransactionTypeService _transactionTypeService;
   final BarangService _barangService;
   final secure_storage.FlutterSecureStorage _storage;
 
   // Reactive state variables
+  final RxList<Map<String, dynamic>> searchResults = <Map<String, dynamic>>[].obs;
   final RxList<Transaction> transactionList = <Transaction>[].obs;
   final RxList<Transaction> filteredTransactionList = <Transaction>[].obs;
   final Rx<Transaction?> selectedTransaction = Rx<Transaction?>(null);
@@ -33,6 +36,8 @@ class TransactionController extends GetxController {
   final RxBool isScanningAllowed = true.obs;
   final TextEditingController quantityController = TextEditingController(text: '1');
   final RxString userRole = ''.obs;
+  final RxString selectedDateRange = 'Semua'.obs;
+  final FocusNode searchFocusNode = FocusNode();
 
   // Form controllers
   final TextEditingController searchController = TextEditingController();
@@ -53,13 +58,15 @@ class TransactionController extends GetxController {
   void onInit() {
     super.onInit();
     _setupSearchListener();
-    // Fetch data immediately on initialization
     loadUserData();
     fetchAllTransactions();
     fetchTransactionTypes();
     fetchBarangs();
 
-    // Listen to route changes for additional refreshes
+    searchFocusNode.addListener(() {
+      print('Search FocusNode: hasFocus=${searchFocusNode.hasFocus}');
+    });
+
     ever(Get.currentRoute.obs, (route) {
       if (route == RoutesName.dashboard) {
         print('Route changed to dashboard, reloading user data');
@@ -73,11 +80,13 @@ class TransactionController extends GetxController {
 
   void _setupSearchListener() {
     searchController.addListener(() {
-      searchQuery.value = searchController.text;
+      if (searchQuery.value != searchController.text) {
+        searchQuery.value = searchController.text;
+      }
     });
 
     debounce(searchQuery, (_) => filterTransactions(),
-        time: const Duration(milliseconds: 300));
+        time: const Duration(milliseconds: 500));
   }
 
   @override
@@ -86,10 +95,54 @@ class TransactionController extends GetxController {
     quantityController.dispose();
     dateStartController.dispose();
     dateEndController.dispose();
+    searchFocusNode.dispose();
     super.onClose();
   }
 
-  // Print transaction types for debugging
+  Map<String, String?> getDateRange(String range) {
+    final now = DateTime.now();
+    final formatter = DateFormat('yyyy-MM-dd');
+
+    switch (range) {
+      case 'Hari Ini':
+        return {
+          'date_start': formatter.format(now),
+          'date_end': formatter.format(now),
+        };
+      case 'Minggu Ini':
+        final startDate = now.subtract(Duration(days: now.weekday - 1));
+        return {
+          'date_start': formatter.format(startDate),
+          'date_end': formatter.format(now),
+        };
+      case 'Bulan Ini':
+        final startOfMonth = DateTime(now.year, now.month, 1);
+        return {
+          'date_start': formatter.format(startOfMonth),
+          'date_end': formatter.format(now),
+        };
+      case 'Custom':
+        if (dateStartController.text.isEmpty || dateEndController.text.isEmpty) {
+          print('Warning: Custom date range selected but one or both dates are empty');
+          return {'date_start': null, 'date_end': null};
+        }
+        try {
+          final startDate = DateTime.parse(dateStartController.text);
+          final endDate = DateTime.parse(dateEndController.text);
+          print('Parsed custom dates: start=${formatter.format(startDate)}, end=${formatter.format(endDate)}');
+          return {
+            'date_start': formatter.format(startDate),
+            'date_end': formatter.format(endDate),
+          };
+        } catch (e) {
+          print('Error parsing custom dates: $e');
+          return {'date_start': null, 'date_end': null};
+        }
+      default:
+        return {'date_start': null, 'date_end': null};
+    }
+  }
+
   void printTransactionTypes() {
     if (transactionTypes.isEmpty) {
       print('No transaction types available');
@@ -101,7 +154,6 @@ class TransactionController extends GetxController {
     }
   }
 
-  // Load user data from FlutterSecureStorage
   Future<void> loadUserData() async {
     try {
       final userDataString = await _storage.read(key: 'user');
@@ -121,7 +173,6 @@ class TransactionController extends GetxController {
     }
   }
 
-  // Save user data to FlutterSecureStorage
   Future<void> saveUserData(Map<String, dynamic> loginResponse) async {
     try {
       final data = loginResponse['data'];
@@ -133,7 +184,6 @@ class TransactionController extends GetxController {
     }
   }
 
-  // Show success snackbar
   void showSuccessSnackbar(String title, String message) {
     Get.snackbar(
       title,
@@ -151,7 +201,6 @@ class TransactionController extends GetxController {
     );
   }
 
-  // Show error snackbar
   void showErrorSnackbar(String title, String message) {
     Get.snackbar(
       title,
@@ -169,13 +218,30 @@ class TransactionController extends GetxController {
     );
   }
 
+  void showInfoSnackbar(String title, String message) {
+    Get.snackbar(
+      title,
+      message,
+      snackPosition: SnackPosition.TOP,
+      backgroundColor: Colors.blue[600],
+      colorText: Colors.white,
+      margin: const EdgeInsets.all(16),
+      borderRadius: 12,
+      duration: const Duration(seconds: 3),
+      icon: const Icon(Icons.info, color: Colors.white),
+      shouldIconPulse: true,
+      snackStyle: SnackStyle.FLOATING,
+      animationDuration: const Duration(milliseconds: 500),
+    );
+  }
+
   Future<void> fetchTransactionTypes() async {
     try {
       isLoading(true);
       errorMessage('');
       final types = await _transactionTypeService.getAllTransactionType();
       transactionTypes.assignAll(types);
-      printTransactionTypes(); // Print transaction types for debugging
+      printTransactionTypes();
     } catch (e) {
       errorMessage('Gagal memuat tipe transaksi: $e');
       showErrorSnackbar('Error', errorMessage.value);
@@ -258,11 +324,7 @@ class TransactionController extends GetxController {
 
       var result = await BarcodeScanner.scan(
         options: const ScanOptions(
-          restrictFormat: [
-            BarcodeFormat.qr,
-            BarcodeFormat.code128,
-            BarcodeFormat.ean13
-          ],
+          restrictFormat: [BarcodeFormat.qr, BarcodeFormat.code128, BarcodeFormat.ean13],
           useCamera: -1,
           autoEnableFlash: false,
           android: AndroidOptions(useAutoFocus: true),
@@ -274,7 +336,7 @@ class TransactionController extends GetxController {
         await _checkBarcode(result.rawContent);
       } else {
         errorMessage('Pemindaian dibatalkan atau gagal');
-        showErrorSnackbar('Info', errorMessage.value);
+        showInfoSnackbar('Info', errorMessage.value);
       }
     } catch (e) {
       errorMessage('Gagal memindai barcode: $e');
@@ -310,21 +372,38 @@ class TransactionController extends GetxController {
         content: Column(
           children: [
             Text(item['barang_nama'] ?? 'Item Tidak Diketahui'),
+            Text('Kode: ${item['barang_kode'] ?? 'Tidak Diketahui'}'),
             Text('Stok Tersedia: ${item['stok_tersedia'] ?? 0}'),
+            Text('Gudang: ${item['gudang_name'] ?? 'Tidak Diketahui'}'),
             const SizedBox(height: 16),
             TextFormField(
               controller: quantityController,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Jumlah',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: 'Jumlah (${item['satuan'] ?? 'Unit'})',
+                border: const OutlineInputBorder(),
               ),
             ),
           ],
         ),
+        cancel: TextButton(
+          onPressed: () => Get.back(),
+          child: const Text('Batal'),
+        ),
         confirm: ElevatedButton(
           onPressed: () {
             final quantity = int.tryParse(quantityController.text) ?? 1;
+            if (quantity <= 0) {
+              showErrorSnackbar('Error', 'Jumlah harus lebih dari 0');
+              return;
+            }
+            final transactionType = transactionTypes.firstWhereOrNull(
+                (type) => type.id == selectedTransactionTypeId.value);
+            if (transactionType?.name?.toLowerCase() != 'barang masuk' &&
+                quantity > (item['stok_tersedia'] ?? 0)) {
+              showErrorSnackbar('Error', 'Jumlah melebihi stok tersedia');
+              return;
+            }
             _addScannedItem(item, quantity);
             Get.back();
           },
@@ -361,6 +440,9 @@ class TransactionController extends GetxController {
         'barang_kode': item['barang_kode'],
         'barang_nama': item['barang_nama'],
         'quantity': quantity,
+        'stok_tersedia': item['stok_tersedia'],
+        'gudang_name': item['gudang_name'],
+        'satuan': item['satuan'],
       });
     }
     scannedItems.refresh();
@@ -369,6 +451,7 @@ class TransactionController extends GetxController {
 
   void removeScannedItem(int index) {
     scannedItems.removeAt(index);
+    scannedItems.refresh();
   }
 
   void updateItemQuantity(int index, int quantity) {
@@ -414,13 +497,15 @@ class TransactionController extends GetxController {
       quantityController.text = '1';
 
       await fetchAllTransactions();
+      await fetchBarangs();
 
       showSuccessSnackbar('Sukses', 'Transaksi berhasil disimpan');
     } catch (e) {
       print('Error saat menyimpan transaksi: $e');
       String errorMsg = e.toString();
       if (errorMsg.contains('Exception: Transaksi gagal!')) {
-        errorMsg = 'Transaksi gagal disimpan. Pastikan semua data valid dan Anda memiliki akses ke gudang ini.';
+        errorMsg =
+            'Transaksi gagal disimpan. Pastikan semua data valid dan Anda memiliki akses ke gudang ini.';
       }
       errorMessage.value = errorMsg;
       showErrorSnackbar('Error', errorMessage.value);
@@ -435,16 +520,21 @@ class TransactionController extends GetxController {
   }
 
   void filterTransactions() {
+    print('Filtering transactions with query: "${searchQuery.value}"');
     final query = searchQuery.value.toLowerCase();
     if (query.isEmpty) {
       filteredTransactionList.assignAll(transactionList);
     } else {
       filteredTransactionList.assignAll(
-        transactionList.where((item) =>
-            (item.transactionCode?.toLowerCase().contains(query) ?? false) ||
-            (item.transactionType?.name?.toLowerCase().contains(query) ?? false)),
+        transactionList.where((item) {
+          final matchesCode = item.transactionCode?.toLowerCase().contains(query) ?? false;
+          final matchesType = item.transactionType?.name?.toLowerCase().contains(query) ?? false;
+          return matchesCode || matchesType;
+        }).toList(),
       );
     }
+    print('Filtered ${filteredTransactionList.length} transactions');
+    filteredTransactionList.refresh();
   }
 
   Future<void> applyFilter() async {
@@ -452,18 +542,42 @@ class TransactionController extends GetxController {
       isLoading(true);
       errorMessage('');
 
-      final transactionTypeId =
-          selectedTransactionTypeId.value == 0 ? null : selectedTransactionTypeId.value;
-      final dateStart = dateStartController.text.isEmpty ? null : dateStartController.text;
-      final dateEnd = dateEndController.text.isEmpty ? null : dateEndController.text;
+      final transactionTypeId = selectedTransactionTypeId.value == 0
+          ? null
+          : selectedTransactionTypeId.value;
+      final dateRange = getDateRange(selectedDateRange.value);
 
-      await fetchAllTransactions(
+      if (selectedDateRange.value == 'Custom') {
+        if (dateRange['date_start'] == null || dateRange['date_end'] == null) {
+          throw Exception('Tanggal mulai dan selesai harus diisi dengan format yang valid');
+        }
+        final startDate = DateTime.tryParse(dateRange['date_start']!);
+        final endDate = DateTime.tryParse(dateRange['date_end']!);
+        if (startDate == null || endDate == null) {
+          throw Exception('Format tanggal tidak valid');
+        }
+        if (endDate.isBefore(startDate)) {
+          throw Exception('Tanggal selesai tidak boleh sebelum tanggal mulai');
+        }
+      }
+
+      print('Applying filter with: transactionTypeId=$transactionTypeId, '
+          'dateStart=${dateRange['date_start']}, dateEnd=${dateRange['date_end']}');
+
+      final transactions = await _transactionService.getAllTransactions(
         transactionTypeId: transactionTypeId,
-        dateStart: dateStart,
-        dateEnd: dateEnd,
+        dateStart: dateRange['date_start'],
+        dateEnd: dateRange['date_end'],
       );
 
-      showSuccessSnackbar('Sukses', 'Filter berhasil diterapkan');
+      transactionList.assignAll(transactions);
+      filterTransactions();
+
+      if (transactionList.isEmpty) {
+        showInfoSnackbar('Info', 'Tidak ada transaksi untuk filter yang dipilih');
+      } else {
+        showSuccessSnackbar('Sukses', 'Filter berhasil diterapkan');
+      }
     } catch (e) {
       errorMessage('Gagal menerapkan filter: $e');
       showErrorSnackbar('Error', errorMessage.value);
@@ -496,15 +610,90 @@ class TransactionController extends GetxController {
     }
   }
 
+  void searchItems(String query) {
+    if (query.isEmpty) {
+      searchResults.clear();
+      return;
+    }
+
+    final lowerQuery = query.toLowerCase();
+    searchResults.assignAll(
+      barangs
+          .where((barang) =>
+              (barang.barangNama?.toLowerCase().contains(lowerQuery) ?? false) ||
+              (barang.barangKode?.toLowerCase().contains(lowerQuery) ?? false))
+          .map((barang) => {
+                'barang_kode': barang.barangKode,
+                'barang_nama': barang.barangNama,
+              })
+          .toList(),
+    );
+  }
+
+  void addSearchResultToScannedItems(Map<String, dynamic> item) {
+    if (item['barang_kode'] == null || item['barang_kode'].isEmpty) {
+      showErrorSnackbar('Error', 'Data barang tidak valid');
+      return;
+    }
+
+    Get.defaultDialog(
+      title: 'Tambah Barang',
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(item['barang_nama'] ?? 'Item Tidak Diketahui'),
+          Text('Kode: ${item['barang_kode'] ?? 'Tidak Diketahui'}'),
+          Text('Stok Tersedia: ${item['stok_tersedia'] ?? 0}'),
+          Text('Gudang: ${item['gudang_name'] ?? 'Tidak Diketahui'}'),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: quantityController,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              labelText: 'Jumlah (${item['satuan'] ?? 'Unit'})',
+              border: const OutlineInputBorder(),
+            ),
+          ),
+        ],
+      ),
+      cancel: TextButton(
+        onPressed: () => Get.back(),
+        child: const Text('Batal'),
+      ),
+      confirm: ElevatedButton(
+        onPressed: () {
+          final quantity = int.tryParse(quantityController.text) ?? 1;
+          if (quantity <= 0) {
+            showErrorSnackbar('Error', 'Jumlah harus lebih dari 0');
+            return;
+          }
+          final transactionType = transactionTypes.firstWhereOrNull(
+              (type) => type.id == selectedTransactionTypeId.value);
+          if (transactionType?.name?.toLowerCase() != 'barang masuk' &&
+              quantity > (item['stok_tersedia'] ?? 0)) {
+            showErrorSnackbar('Error', 'Jumlah melebihi stok tersedia');
+            return;
+          }
+          _addScannedItem(item, quantity);
+          searchResults.clear();
+          searchQuery.value = '';
+          Get.back();
+        },
+        child: const Text('Tambah'),
+      ),
+    );
+  }
+
   void refreshData() {
+    selectedDateRange('Semua');
+    dateStartController.clear();
+    dateEndController.clear();
     fetchAllTransactions();
-    fetchTransactionTypes(); // Ensure transaction types are refreshed
+    fetchTransactionTypes();
     scannedItems.clear();
     scannedBarcode('');
     selectedTransactionTypeId(0);
     quantityController.text = '1';
-    dateStartController.clear();
-    dateEndController.clear();
   }
 
   void handleError(dynamic e, String defaultMessage) {

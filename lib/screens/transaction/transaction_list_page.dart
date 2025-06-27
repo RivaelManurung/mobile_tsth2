@@ -5,6 +5,8 @@ import 'package:inventory_tsth2/Model/transaction_model.dart';
 import 'package:inventory_tsth2/controller/transaction_controller.dart';
 import 'package:intl/intl.dart';
 import 'package:pull_to_refresh_flutter3/pull_to_refresh_flutter3.dart';
+import 'package:collection/collection.dart';
+import 'transaction_create_page.dart';
 
 class TransactionListPage extends StatelessWidget {
   TransactionListPage({super.key});
@@ -12,25 +14,22 @@ class TransactionListPage extends StatelessWidget {
   final TransactionController _controller = Get.put(TransactionController());
   final RefreshController _refreshController = RefreshController();
   final RxnInt _selectedTransactionId = RxnInt();
-  final RxBool _isAddingTransaction = false.obs;
   final ValueNotifier<bool> _isSearchNotEmpty = ValueNotifier<bool>(false);
-  final TextEditingController _barcodeTextController = TextEditingController();
 
   // Fungsi untuk menentukan warna berdasarkan tipe transaksi
   Color _getTransactionTypeColor(String? type) {
     switch (type?.toLowerCase()) {
       case 'barang masuk':
-        return const Color(0xFF4CAF50); // Hijau
+        return const Color(0xFF4CAF50);
       case 'peminjaman':
-        return const Color(0xFFFFC107); // Kuning
+        return const Color(0xFFFFC107);
       case 'barang keluar':
-        return const Color(0xFFF44336); // Merah
+        return const Color(0xFFF44336);
       default:
-        return const Color(0xFF6F767E); // Abu-abu
+        return const Color(0xFF6F767E);
     }
   }
 
-  // Mendapatkan nama tipe transaksi berdasarkan ID
   String _getTransactionTypeName(int? typeId) {
     if (typeId == null || typeId == 0) return 'Pilih Tipe';
     final type = _controller.transactionTypes
@@ -39,7 +38,6 @@ class TransactionListPage extends StatelessWidget {
     return type ?? 'Tidak Diketahui';
   }
 
-  // Format tanggal dengan penanganan error
   String _formatDate(String? dateStr) {
     if (dateStr == null) return 'Tanggal Tidak Diketahui';
     try {
@@ -58,15 +56,14 @@ class TransactionListPage extends StatelessWidget {
       _isSearchNotEmpty.value = _controller.searchController.text.isNotEmpty;
     });
 
-    // ignore: deprecated_member_use
     return WillPopScope(
       onWillPop: () async {
-        if (_selectedTransactionId.value != null) {
-          _selectedTransactionId.value = null;
+        if (_controller.searchFocusNode.hasFocus) {
+          _controller.searchFocusNode.unfocus();
           return false;
         }
-        if (_isAddingTransaction.value) {
-          _isAddingTransaction.value = false;
+        if (_selectedTransactionId.value != null) {
+          _selectedTransactionId.value = null;
           return false;
         }
         return true;
@@ -76,8 +73,7 @@ class TransactionListPage extends StatelessWidget {
         body: SmartRefresher(
           controller: _refreshController,
           onRefresh: _refreshData,
-          enablePullDown: _selectedTransactionId.value == null &&
-              !_isAddingTransaction.value,
+          enablePullDown: _selectedTransactionId.value == null && !_controller.searchFocusNode.hasFocus,
           header: const ClassicHeader(
             idleText: 'Tarik untuk memperbarui',
             releaseText: 'Lepas untuk memperbarui',
@@ -91,9 +87,7 @@ class TransactionListPage extends StatelessWidget {
             slivers: [
               _buildAppBar(isSmallScreen),
               Obx(() {
-                if (_isAddingTransaction.value) {
-                  return _buildAddTransactionView(isSmallScreen);
-                } else if (_selectedTransactionId.value != null) {
+                if (_selectedTransactionId.value != null) {
                   return _buildDetailView(
                       context, _selectedTransactionId.value!, isSmallScreen);
                 } else {
@@ -123,8 +117,6 @@ class TransactionListPage extends StatelessWidget {
           onPressed: () {
             if (_selectedTransactionId.value != null) {
               _selectedTransactionId.value = null;
-            } else if (_isAddingTransaction.value) {
-              _isAddingTransaction.value = false;
             } else {
               Get.back();
             }
@@ -133,7 +125,7 @@ class TransactionListPage extends StatelessWidget {
         ).animate().fadeIn(delay: 300.ms).scale(),
       ),
       actions: [
-        if (_selectedTransactionId.value == null && !_isAddingTransaction.value)
+        if (_selectedTransactionId.value == null)
           Padding(
             padding: const EdgeInsets.only(right: 8.0),
             child: IconButton(
@@ -211,1170 +203,492 @@ class TransactionListPage extends StatelessWidget {
     );
   }
 
-SliverToBoxAdapter _buildDaftarView(BuildContext context, bool isSmallScreen) {
-  return SliverToBoxAdapter(
-    child: Column(
-      children: [
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: isSmallScreen ? 12 : 16, vertical: 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: Container(
+  SliverToBoxAdapter _buildDaftarView(
+      BuildContext context, bool isSmallScreen) {
+    return SliverToBoxAdapter(
+      child: Column(
+        children: [
+          Padding(
+            padding: EdgeInsets.symmetric(
+                horizontal: isSmallScreen ? 12 : 16, vertical: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: Colors.grey[300] ?? Colors.grey, width: 1),
+                    ),
+                    child: TextField(
+                      controller: _controller.searchController,
+                      focusNode: _controller.searchFocusNode,
+                      keyboardType: TextInputType.text,
+                      textInputAction: TextInputAction.search,
+                      decoration: InputDecoration(
+                        hintText: 'Cari transaksi...',
+                        hintStyle: const TextStyle(color: Color(0xFF6F767E)),
+                        prefixIcon:
+                            const Icon(Icons.search, color: Color(0xFF5A67D8)),
+                        suffixIcon: ValueListenableBuilder<bool>(
+                          valueListenable: _isSearchNotEmpty,
+                          builder: (context, isNotEmpty, child) {
+                            if (isNotEmpty) {
+                              return IconButton(
+                                icon: const Icon(Icons.clear,
+                                    color: Color(0xFF5A67D8)),
+                                onPressed: () {
+                                  _controller.searchController.clear();
+                                  _controller.searchQuery.value = '';
+                                  _controller.filterTransactions();
+                                  _controller.searchFocusNode.requestFocus();
+                                },
+                              );
+                            }
+                            return const SizedBox.shrink();
+                          },
+                        ),
+                        filled: true,
+                        fillColor: Colors.transparent,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                            vertical: 0, horizontal: 16),
+                      ),
+                      style: const TextStyle(
+                          fontSize: 14, color: Color(0xFF1A1D1F)),
+                      onTap: () {
+                        _controller.searchFocusNode.requestFocus();
+                      },
+                      onChanged: (value) {
+                        _controller.searchQuery.value = value;
+                        // Debounce in controller handles filtering
+                      },
+                      onSubmitted: (value) {
+                        _controller.filterTransactions();
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Material(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  elevation: 1,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () {
+                      _controller.searchFocusNode.unfocus();
+                      Get.bottomSheet(
+                        _buildFilterBottomSheet(context),
+                        backgroundColor: Colors.white,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.vertical(top: Radius.circular(24)),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      child: const Icon(
+                        Icons.filter_list_rounded,
+                        color: Color(0xFF5A67D8),
+                        size: 24,
+                      ),
+                    ),
+                  ).animate().fadeIn(delay: 500.ms).scale(),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.symmetric(
+                horizontal: isSmallScreen ? 12 : 16, vertical: 8),
+            child: GestureDetector(
+              onTap: () {
+                _controller.searchFocusNode.unfocus();
+                Get.to(() => TransactionCreatePage());
+              },
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF5A67D8),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF4C51BF), width: 1),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Row(
+                      children: [
+                        SizedBox(width: 12),
+                        Text(
+                          'Tambah Transaksi Baru',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      color: Colors.white.withOpacity(0.7),
+                      size: 16,
+                    ),
+                  ],
+                ),
+              ),
+            ).animate().fadeIn(delay: 600.ms).scale(),
+          ),
+          Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: isSmallScreen ? 12 : 16,
+              vertical: 16,
+            ),
+            child: Obx(() {
+              if (_controller.isLoading.value) {
+                return const Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation(Color(0xFF5A67D8)),
+                  ),
+                ).animate().fadeIn(delay: 200.ms);
+              }
+              if (_controller.errorMessage.value.isNotEmpty) {
+                return Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey[300] ?? Colors.grey, width: 1),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                        color: Colors.grey[300] ?? Colors.grey, width: 1),
                   ),
-                  child: TextField(
-                    controller: _controller.searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Cari transaksi...',
-                      hintStyle: const TextStyle(color: Color(0xFF6F767E)),
-                      prefixIcon: const Icon(Icons.search, color: Color(0xFF5A67D8)),
-                      suffixIcon: ValueListenableBuilder<bool>(
-                        valueListenable: _isSearchNotEmpty,
-                        builder: (context, isNotEmpty, child) {
-                          if (isNotEmpty) {
-                            return IconButton(
-                              icon: const Icon(Icons.clear, color: Color(0xFF5A67D8)),
-                              onPressed: () {
-                                _controller.searchController.clear();
-                                _controller.searchQuery.value = '';
-                                _controller.filterTransactions();
-                              },
-                            );
-                          }
-                          return const SizedBox.shrink();
-                        },
-                      ),
-                      filled: true,
-                      fillColor: Colors.transparent,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
-                    ),
-                    style: const TextStyle(fontSize: 14, color: Color(0xFF1A1D1F)),
-                    onChanged: (value) {
-                      _controller.searchQuery.value = value;
-                      _controller.filterTransactions();
-                    },
-                  ),
-                ).animate().fadeIn(delay: 500.ms).slideY(begin: 0.2),
-              ),
-              const SizedBox(width: 12),
-              Material(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                elevation: 1,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: () {
-                    Get.bottomSheet(
-                      _buildFilterBottomSheet(),
-                      backgroundColor: Colors.white,
-                      shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                      ),
-                    );
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    child: const Icon(
-                      Icons.filter_list_rounded,
-                      color: Color(0xFF5A67D8),
-                      size: 24,
-                    ),
-                  ),
-                ).animate().fadeIn(delay: 500.ms).scale(),
-              ),
-            ],
-          ),
-        ),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: isSmallScreen ? 12 : 16, vertical: 8),
-          child: GestureDetector(
-            onTap: () {
-              _isAddingTransaction.value = true;
-            },
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF5A67D8),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF4C51BF), width: 1),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Row(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      SizedBox(width: 12),
-                      Text(
-                        'Tambah Transaksi Baru',
+                      const Text(
+                        'Terjadi Kesalahan',
                         style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
+                          fontSize: 16,
                           fontWeight: FontWeight.w600,
+                          color: Color(0xFFF44336),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _controller.errorMessage.value,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: isSmallScreen ? 14 : 16,
+                          color: const Color(0xFF1A1D1F),
                         ),
                       ),
                     ],
                   ),
-                  Icon(
-                    Icons.arrow_forward_ios,
-                    color: Colors.white.withOpacity(0.7),
-                    size: 16,
-                  ),
-                ],
-              ),
-            ),
-          ).animate().fadeIn(delay: 600.ms).scale(),
-        ),
-        Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: isSmallScreen ? 12 : 16,
-            vertical: 16,
-          ),
-          child: Obx(() {
-            if (_controller.isLoading.value) {
-              return const Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation(Color(0xFF5A67D8)),
-                ),
-              ).animate().fadeIn(delay: 200.ms);
-            }
-            if (_controller.errorMessage.value.isNotEmpty) {
-              return Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16),
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.grey[300] ?? Colors.grey, width: 1),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      'Terjadi Kesalahan',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFFF44336),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      _controller.errorMessage.value,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: isSmallScreen ? 14 : 16,
-                        color: const Color(0xFF1A1D1F),
-                      ),
-                    ),
-                  ],
-                ),
-              ).animate().fadeIn(delay: 200.ms).scale(delay: 200.ms, duration: 400.ms);
-            }
-            if (_controller.transactionList.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      'Tidak Ada Transaksi',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF6F767E),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Tambah transaksi untuk memulai',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
-              ).animate().fadeIn(delay: 200.ms).scale(delay: 200.ms, duration: 400.ms);
-            }
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: EdgeInsets.only(left: isSmallScreen ? 4 : 8, bottom: 8),
-                  child: Text(
-                    'Daftar Transaksi',
-                    style: TextStyle(
-                      fontSize: isSmallScreen ? 17 : 19,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF1A1D1F),
-                    ),
-                  ),
-                ),
-                ..._controller.transactionList.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final transaction = entry.value;
-                  return _buildTransactionCard(transaction, index, isSmallScreen);
-                }).toList(),
-              ],
-            );
-          }),
-        ),
-        const SizedBox(height: 16),
-      ],
-    ),
-  );
-}
-  Widget _buildFilterBottomSheet() {
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Filter Transaksi',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF1A1D1F),
-                ),
-              ),
-              IconButton(
-                icon:
-                    const Icon(Icons.close, color: Color(0xFF6F767E), size: 28),
-                onPressed: () => Get.back(),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Tipe Transaksi',
-            style: TextStyle(
-                fontSize: 15, fontWeight: FontWeight.w600, letterSpacing: 0.3),
-          ),
-          const SizedBox(height: 10),
-          Obx(() {
-            if (_controller.isLoading.value) {
-              return const Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation(Color(0xFF5A67D8)),
-                ),
-              );
-            }
-            if (_controller.transactionTypes.isEmpty) {
-              return const Text(
-                'Tidak ada tipe transaksi tersedia',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF6F767E),
-                ),
-              );
-            }
-            return DropdownButtonFormField<int>(
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: Colors.grey[50],
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              ),
-              value: _controller.selectedTransactionTypeId.value == 0
-                  ? null
-                  : _controller.selectedTransactionTypeId.value,
-              items: [
-                const DropdownMenuItem<int>(
-                  value: null,
-                  child: Text('Semua Tipe'),
-                ),
-                ..._controller.transactionTypes.map((type) => DropdownMenuItem(
-                      value: type.id,
-                      child: Text(type.name ?? 'Tidak Diketahui'),
-                    )),
-              ],
-              onChanged: (value) {
-                _controller.selectedTransactionTypeId.value = value ?? 0;
-              },
-            );
-          }),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: _controller.transactionTypes.isEmpty
-                ? null
-                : () {
-                    _controller.applyFilter();
-                    Get.back();
-                  },
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 52),
-              backgroundColor: const Color(0xFF5A67D8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              elevation: 0,
-            ),
-            child: const Text(
-              'Terapkan Filter',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  SliverToBoxAdapter _buildAddTransactionView(bool isSmallScreen) {
-    return SliverToBoxAdapter(
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-            horizontal: isSmallScreen ? 12 : 16, vertical: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.add_circle_outline,
-                    color: Color(0xFF4CAF50),
-                    size: 28,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Buat Transaksi Baru',
-                      style: TextStyle(
-                        fontSize: isSmallScreen ? 22 : 26,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF1A1D1F),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(
-              color: Color(0xFF6F767E),
-              thickness: 1,
-              height: 24,
-            ),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: Text(
-                'Tambahkan barang dengan memindai barcode atau masukkan secara manual.',
-                style: TextStyle(
-                  fontSize: isSmallScreen ? 14 : 15,
-                  color: const Color(0xFF6F767E),
-                  fontWeight: FontWeight.w400,
-                ),
-              ),
-            ),
-            Material(
-              color: Colors.white,
-              elevation: 2,
-              borderRadius: BorderRadius.circular(16),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildScannerSection(isSmallScreen),
-                    const SizedBox(height: 24),
-                    _buildItemsSection(isSmallScreen: isSmallScreen),
-                    const SizedBox(height: 24),
-                    _buildSubmitSection(isSmallScreen),
-                  ],
-                ),
-              ),
-            ).animate().fadeIn(duration: 400.ms),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildScannerSection(bool isSmallScreen) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[300] ?? Colors.grey, width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF4CAF50),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  'Input Barang',
-                  style: TextStyle(
-                    fontSize: isSmallScreen ? 14 : 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _buildBarcodeField(isSmallScreen),
-          const SizedBox(height: 16),
-          _buildTransactionTypeDropdown(isSmallScreen),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildManualCheckButton(isSmallScreen),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildScanButton(isSmallScreen),
-              ),
-            ],
-          ),
-        ],
-      ),
-    ).animate().fadeIn(delay: 200.ms);
-  }
-
-  Widget _buildBarcodeField(bool isSmallScreen) {
-    final formKey = GlobalKey<FormState>();
-
-    return Obx(() {
-      if (_barcodeTextController.text != _controller.scannedBarcode.value) {
-        _barcodeTextController.text = _controller.scannedBarcode.value;
-      }
-
-      return Form(
-        key: formKey,
-        child: TextFormField(
-          controller: _barcodeTextController,
-          decoration: InputDecoration(
-            labelText: 'Kode Barcode',
-            labelStyle: TextStyle(
-              color: const Color(0xFF6F767E),
-              fontWeight: FontWeight.w500,
-              fontSize: isSmallScreen ? 14 : 15,
-            ),
-            filled: true,
-            fillColor: Colors.grey[50],
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: _controller.scannedBarcode.value.isEmpty
-                    ? Colors.grey.withOpacity(0.5)
-                    : const Color(0xFF4CAF50),
-                width: 1.5,
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: Color(0xFF4CAF50),
-                width: 1.5,
-              ),
-            ),
-            suffixIcon: _controller.scannedBarcode.value.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(
-                      Icons.clear,
-                      color: Color(0xFF4CAF50),
-                      size: 20,
-                    ),
-                    onPressed: () {
-                      _controller.scannedBarcode.value = '';
-                      _controller.quantityController.text = '1';
-                      _barcodeTextController.clear();
-                    },
-                  )
-                : null,
-            prefixIcon: Icon(
-              Icons.qr_code_rounded,
-              color: _controller.scannedBarcode.value.isNotEmpty
-                  ? const Color(0xFF4CAF50)
-                  : const Color(0xFF6F767E),
-              size: 22,
-            ),
-            contentPadding:
-                const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-          ),
-          style: TextStyle(
-            fontSize: isSmallScreen ? 15 : 16,
-            color: const Color(0xFF1A1D1F),
-          ),
-          onChanged: (value) {
-            _controller.scannedBarcode.value = value;
-          },
-          textInputAction: TextInputAction.done,
-          onFieldSubmitted: (value) {
-            if (value.isNotEmpty) {
-              _controller.checkManualBarcode(value);
-            } else {
-              Get.snackbar(
-                'Peringatan',
-                'Kode Barcode tidak boleh kosong',
-                snackPosition: SnackPosition.TOP,
-                backgroundColor: Colors.orange,
-                colorText: Colors.white,
-              );
-            }
-          },
-          validator: (value) => value == null || value.isEmpty
-              ? 'Kode Barcode wajib diisi'
-              : null,
-        ),
-      );
-    });
-  }
-
-  Widget _buildTransactionTypeDropdown(bool isSmallScreen) {
-    final formKey = GlobalKey<FormState>();
-
-    return Obx(() => Form(
-          key: formKey,
-          child: DropdownButtonFormField<int>(
-            decoration: InputDecoration(
-              labelText: 'Tipe Transaksi',
-              hintText: 'Pilih Tipe Transaksi',
-              labelStyle: TextStyle(
-                color: const Color(0xFF6F767E),
-                fontWeight: FontWeight.w500,
-                fontSize: isSmallScreen ? 14 : 15,
-              ),
-              filled: true,
-              fillColor: Colors.grey[50],
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: _controller.selectedTransactionTypeId.value == 0
-                      ? Colors.grey.withOpacity(0.5)
-                      : const Color(0xFF4CAF50),
-                  width: 1.5,
-                ),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(
-                  color: Color(0xFF4CAF50),
-                  width: 1.5,
-                ),
-              ),
-              prefixIcon: const Icon(
-                Icons.swap_horiz_rounded,
-                color: Color(0xFF4CAF50),
-                size: 22,
-              ),
-              contentPadding:
-                  const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-            ),
-            value: _controller.selectedTransactionTypeId.value == 0
-                ? null
-                : _controller.selectedTransactionTypeId.value,
-            items: _controller.transactionTypes
-                .map((type) => DropdownMenuItem(
-                      value: type.id,
-                      child: Text(type.name ?? 'Tidak Diketahui'),
-                    ))
-                .toList(),
-            onChanged: (value) {
-              if (value != null) {
-                _controller.selectedTransactionTypeId.value = value;
+                ).animate().fadeIn(delay: 200.ms).scale(delay: 200.ms, duration: 400.ms);
               }
-            },
-            validator: (value) =>
-                value == null ? 'Tipe Transaksi wajib dipilih' : null,
-            style: TextStyle(
-              fontSize: isSmallScreen ? 15 : 16,
-              color: const Color(0xFF1A1D1F),
-            ),
-            dropdownColor: Colors.white,
-            icon: const Icon(
-              Icons.arrow_drop_down,
-              color: Color(0xFF4CAF50),
-              size: 24,
-            ),
+              if (_controller.filteredTransactionList.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text(
+                        'Tidak Ada Transaksi',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF6F767E),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Tambah transaksi untuk memulai',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ).animate().fadeIn(delay: 200.ms).scale(delay: 200.ms, duration: 400.ms);
+              }
+              return ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _controller.filteredTransactionList.length,
+                itemBuilder: (context, index) {
+                  final transaction = _controller.filteredTransactionList[index];
+                  return _buildTransactionCard(transaction, index, isSmallScreen);
+                },
+              );
+            }),
           ),
-        ));
-  }
-
-  Widget _buildManualCheckButton(bool isSmallScreen) {
-    return Obx(() => ElevatedButton(
-          onPressed: _controller.isLoading.value ||
-                  _controller.scannedBarcode.value.isEmpty
-              ? null
-              : () => _controller
-                  .checkManualBarcode(_controller.scannedBarcode.value),
-          style: ElevatedButton.styleFrom(
-            minimumSize: const Size(double.infinity, 50),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            backgroundColor: const Color(0xFF4CAF50),
-            elevation: 0,
-            padding: EdgeInsets.zero,
-          ),
-          child: Container(
-            decoration: BoxDecoration(
-              color: _controller.isLoading.value ||
-                      _controller.scannedBarcode.value.isEmpty
-                  ? Colors.grey[400]
-                  : const Color(0xFF4CAF50),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Center(
-              child: Text(
-                _controller.isLoading.value ? 'MEMPROSES...' : 'CEK BARCODE',
-                style: TextStyle(
-                  fontSize: isSmallScreen ? 15 : 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
-        ));
-  }
-
-  Widget _buildScanButton(bool isSmallScreen) {
-    return Obx(() => ElevatedButton(
-          onPressed:
-              _controller.isLoading.value ? null : _controller.scanBarcode,
-          style: ElevatedButton.styleFrom(
-            minimumSize: const Size(double.infinity, 50),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            backgroundColor: const Color(0xFF2196F3),
-            elevation: 0,
-            padding: EdgeInsets.zero,
-          ),
-          child: Container(
-            decoration: BoxDecoration(
-              color: _controller.isLoading.value
-                  ? Colors.grey[400]
-                  : const Color(0xFF2196F3),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Center(
-              child: Text(
-                _controller.isLoading.value ? 'MEMPROSES...' : 'PINDAI BARCODE',
-                style: TextStyle(
-                  fontSize: isSmallScreen ? 15 : 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
-        ));
-  }
-
-  Widget _buildItemsSection({required bool isSmallScreen}) {
-    return Container(
-      height: 300,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[300] ?? Colors.grey, width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
+          const SizedBox(height: 16),
         ],
       ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF4CAF50),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    'Daftar Barang (${_controller.scannedItems.length})',
+    );
+  }
+
+  Widget _buildFilterBottomSheet(BuildContext context) {
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.7,
+      ),
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Filter Transaksi',
                     style: TextStyle(
-                      fontSize: isSmallScreen ? 14 : 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1A1D1F),
                     ),
                   ),
-                ),
-                Obx(() {
-                  final typeName = _getTransactionTypeName(
-                      _controller.selectedTransactionTypeId.value);
-                  final typeColor = _getTransactionTypeColor(typeName);
-                  return Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: typeColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: typeColor, width: 1),
-                    ),
-                    child: Text(
-                      typeName,
-                      style: TextStyle(
-                        fontSize: isSmallScreen ? 12 : 14,
-                        fontWeight: FontWeight.w600,
-                        color: typeColor,
-                      ),
+                  IconButton(
+                    icon: const Icon(Icons.close,
+                        color: Color(0xFF6F767E), size: 28),
+                    onPressed: () => Get.back(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Tipe Transaksi',
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.3),
+              ),
+              const SizedBox(height: 10),
+              Obx(() {
+                if (_controller.isLoading.value) {
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation(Color(0xFF5A67D8)),
                     ),
                   );
-                }),
-              ],
-            ),
-          ),
-          const Divider(height: 1, color: Colors.grey),
-          Expanded(
-            child: Obx(() => _controller.scannedItems.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                }
+                if (_controller.transactionTypes.isEmpty) {
+                  return const Text(
+                    'Tidak ada tipe transaksi tersedia',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF6F767E),
+                    ),
+                  );
+                }
+                return DropdownButtonFormField<int>(
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                  ),
+                  value: _controller.selectedTransactionTypeId.value == 0
+                      ? null
+                      : _controller.selectedTransactionTypeId.value,
+                  items: [
+                    const DropdownMenuItem<int>(
+                      value: null,
+                      child: Text('Semua Tipe'),
+                    ),
+                    ..._controller.transactionTypes
+                        .map((type) => DropdownMenuItem(
+                              value: type.id,
+                              child: Text(type.name ?? 'Tidak Diketahui'),
+                            )),
+                  ],
+                  onChanged: (value) {
+                    _controller.selectedTransactionTypeId.value = value ?? 0;
+                  },
+                );
+              }),
+              const SizedBox(height: 16),
+              const Text(
+                'Rentang Waktu',
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.3),
+              ),
+              const SizedBox(height: 10),
+              Obx(() => DropdownButtonFormField<String>(
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                    ),
+                    value: _controller.selectedDateRange.value,
+                    items: [
+                      'Semua',
+                      'Hari Ini',
+                      'Minggu Ini',
+                      'Bulan Ini',
+                      'Custom'
+                    ]
+                        .map((range) => DropdownMenuItem(
+                              value: range,
+                              child: Text(range),
+                            ))
+                        .toList(),
+                    onChanged: (value) {
+                      _controller.selectedDateRange.value = value ?? 'Semua';
+                      if (value != 'Custom') {
+                        _controller.dateStartController.clear();
+                        _controller.dateEndController.clear();
+                      }
+                    },
+                  )),
+              const SizedBox(height: 16),
+              Obx(() => _controller.selectedDateRange.value == 'Custom'
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Belum Ada Barang',
+                          'Tanggal Mulai',
                           style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF6F767E),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Pindai atau masukkan kode barang',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey[600],
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  )
-                : _buildItemsList(isSmallScreen)),
-          ),
-        ],
-      ),
-    ).animate().fadeIn(delay: 300.ms);
-  }
-
-  Widget _buildItemsList(bool isSmallScreen) {
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: _controller.scannedItems.length,
-      itemBuilder: (context, index) {
-        final item = _controller.scannedItems[index];
-        return _buildItemCard(index, item, isSmallScreen);
-      },
-    );
-  }
-
-  Widget _buildItemCard(
-      int index, Map<String, dynamic> item, bool isSmallScreen) {
-    final barcode = item['barang_kode']?.toString() ?? 'unknown_$index';
-    return Dismissible(
-      key: Key(barcode),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        color: Colors.red,
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 16),
-        child: const Icon(Icons.delete, color: Colors.white, size: 24),
-      ),
-      onDismissed: (_) => _controller.removeScannedItem(index),
-      child: GestureDetector(
-        onTap: () => _showEditItemDialog(index, item, isSmallScreen),
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border:
-                Border.all(color: Colors.grey[200] ?? Colors.grey, width: 1),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 4,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF4CAF50),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          item['barang_nama']?.toString() ?? 'Tidak Diketahui',
-                          style: TextStyle(
-                            fontSize: isSmallScreen ? 15 : 16,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF1A1D1F),
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF4CAF50).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            '#${index + 1}',
-                            style: const TextStyle(
-                              fontSize: 12,
+                              fontSize: 15,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF4CAF50),
+                              letterSpacing: 0.3),
+                        ),
+                        const SizedBox(height: 10),
+                        TextFormField(
+                          controller: _controller.dateStartController,
+                          readOnly: true,
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: Colors.grey[50],
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
                             ),
+                            hintText: 'Pilih tanggal mulai',
+                            suffixIcon: const Icon(Icons.calendar_today,
+                                color: Color(0xFF5A67D8)),
                           ),
+                          onTap: () async {
+                            DateTime? picked = await showDatePicker(
+                              context: context,
+                              initialDate: DateTime.now(),
+                              firstDate: DateTime(2000),
+                              lastDate: DateTime.now(),
+                            );
+                            if (picked != null) {
+                              _controller.dateStartController.text =
+                                  DateFormat('yyyy-MM-dd').format(picked);
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Tanggal Selesai',
+                          style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.3),
+                        ),
+                        const SizedBox(height: 10),
+                        TextFormField(
+                          controller: _controller.dateEndController,
+                          readOnly: true,
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: Colors.grey[50],
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            hintText: 'Pilih tanggal selesai',
+                            suffixIcon: const Icon(Icons.calendar_today,
+                                color: Color(0xFF5A67D8)),
+                          ),
+                          onTap: () async {
+                            DateTime? picked = await showDatePicker(
+                              context: context,
+                              initialDate: DateTime.now(),
+                              firstDate: DateTime(2000),
+                              lastDate: DateTime.now(),
+                            );
+                            if (picked != null) {
+                              _controller.dateEndController.text =
+                                  DateFormat('yyyy-MM-dd').format(picked);
+                            }
+                          },
                         ),
                       ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Kode: ${item['barang_kode']?.toString() ?? 'Tidak Diketahui'}',
-                      style: TextStyle(
-                        fontSize: isSmallScreen ? 12 : 13,
-                        color: const Color(0xFF6F767E),
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      'Gudang: ${item['gudang_name']?.toString() ?? 'Tidak Diketahui'}',
-                      style: TextStyle(
-                        fontSize: isSmallScreen ? 12 : 13,
-                        color: const Color(0xFF6F767E),
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              _buildQuantityControls(index, item, isSmallScreen),
-            ],
-          ),
-        ),
-      ),
-    ).animate().fadeIn(delay: (200 + index * 100).ms);
-  }
-
-  void _showEditItemDialog(
-      int index, Map<String, dynamic> item, bool isSmallScreen) {
-    final quantityController =
-        TextEditingController(text: item['quantity'].toString());
-    Get.dialog(
-      AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          'Edit Barang: ${item['barang_nama']?.toString() ?? 'Tidak Diketahui'}',
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Kode: ${item['barang_kode']?.toString() ?? 'Tidak Diketahui'}',
-              style: const TextStyle(fontSize: 14, color: Color(0xFF6F767E)),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Gudang: ${item['gudang_name']?.toString() ?? 'Tidak Diketahui'}',
-              style: const TextStyle(fontSize: 14, color: Color(0xFF6F767E)),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: quantityController,
-              decoration: InputDecoration(
-                labelText: 'Jumlah (${item['satuan']?.toString() ?? 'Unit'})',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              ),
-              keyboardType: TextInputType.number,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text(
-              'Batal',
-              style: TextStyle(color: Color(0xFF6F767E)),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final newQty = int.tryParse(quantityController.text) ??
-                  item['quantity'] as int;
-              _controller.updateItemQuantity(index, newQty);
-              Get.back();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF4CAF50),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: const Text(
-              'Simpan',
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuantityControls(
-      int index, Map<String, dynamic> item, bool isSmallScreen) {
-    final quantity = item['quantity'] as int? ?? 1;
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey[200] ?? Colors.grey, width: 1),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            icon: const Icon(
-              Icons.remove_circle_outline,
-              size: 20,
-              color: Color(0xFF4CAF50),
-            ),
-            onPressed: () {
-              final newQty = quantity - 1;
-              if (newQty > 0) {
-                _controller.updateItemQuantity(index, newQty);
-              }
-            },
-            padding: const EdgeInsets.all(4),
-            constraints: const BoxConstraints(),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Text(
-              '$quantity ${item['satuan']?.toString() ?? 'Unit'}',
-              style: TextStyle(
-                fontSize: isSmallScreen ? 14 : 15,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF1A1D1F),
-              ),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(
-              Icons.add_circle_outline,
-              size: 20,
-              color: Color(0xFF4CAF50),
-            ),
-            onPressed: () {
-              final newQty = quantity + 1;
-              _controller.updateItemQuantity(index, newQty);
-            },
-            padding: const EdgeInsets.all(4),
-            constraints: const BoxConstraints(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSubmitSection(bool isSmallScreen) {
-    return Obx(() {
-      final isButtonEnabled =
-          _controller.selectedTransactionTypeId.value != 0 &&
-              _controller.scannedItems.isNotEmpty &&
-              !_controller.isLoading.value;
-      final typeName =
-          _getTransactionTypeName(_controller.selectedTransactionTypeId.value);
-      final typeColor = _getTransactionTypeColor(typeName);
-
-      return Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: typeColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: typeColor, width: 1),
-            ),
-            child: Text(
-              'Tipe Transaksi: $typeName',
-              style: TextStyle(
-                fontSize: isSmallScreen ? 14 : 16,
-                fontWeight: FontWeight.w600,
-                color: typeColor,
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: isButtonEnabled
-                ? () {
-                    Get.dialog(
-                      AlertDialog(
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16)),
-                        title: const Text(
-                          'Konfirmasi',
-                          style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.w600),
-                        ),
-                        content: Text(
-                          'Apakah Anda yakin ingin menyimpan transaksi $typeName ini?',
-                          style: const TextStyle(
-                              fontSize: 15, color: Color(0xFF6F767E)),
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Get.back(),
-                            child: const Text(
-                              'Batal',
-                              style: TextStyle(color: Color(0xFF6F767E)),
-                            ),
-                          ),
-                          ElevatedButton(
-                            onPressed: () {
-                              Get.back();
-                              _controller.submitTransaction();
-                              _isAddingTransaction.value = false;
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF4CAF50),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: const Text(
-                              'Ya, Simpan',
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-                : null,
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 56),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              backgroundColor:
-                  isButtonEnabled ? const Color(0xFF4CAF50) : Colors.grey,
-              elevation: 2,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (_controller.isLoading.value) ...[
-                  const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
-                    ),
+                    )
+                  : const SizedBox.shrink()),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: _controller.transactionTypes.isEmpty ||
+                        (_controller.selectedDateRange.value == 'Custom' &&
+                            (_controller.dateStartController.text.isEmpty ||
+                                _controller.dateEndController.text.isEmpty))
+                    ? null
+                    : () {
+                        if (_controller.selectedDateRange.value == 'Custom') {
+                          final startDate = DateTime.tryParse(
+                              _controller.dateStartController.text);
+                          final endDate = DateTime.tryParse(
+                              _controller.dateEndController.text);
+                          if (startDate == null || endDate == null) {
+                            _controller.showErrorSnackbar('Error',
+                                'Tanggal mulai atau selesai tidak valid');
+                            return;
+                          }
+                          if (endDate.isBefore(startDate)) {
+                            _controller.showErrorSnackbar('Error',
+                                'Tanggal selesai tidak boleh sebelum tanggal mulai');
+                            return;
+                          }
+                        }
+                        _controller.applyFilter();
+                        Get.back();
+                      },
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 52),
+                  backgroundColor: const Color(0xFF5A67D8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  const SizedBox(width: 8),
-                ] else ...[
-                  const Icon(
-                    Icons.save,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                ],
-                Text(
-                  _controller.isLoading.value
-                      ? 'MEMPROSES...'
-                      : 'SIMPAN TRANSAKSI',
+                  elevation: 0,
+                ),
+                child: const Text(
+                  'Terapkan Filter',
                   style: TextStyle(
-                    fontSize: isSmallScreen ? 16 : 18,
+                    fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: Colors.white,
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ).animate().fadeIn(delay: 400.ms).scale(
-            begin:
-                isButtonEnabled ? const Offset(0.98, 0.98) : const Offset(1, 1),
-            end:
-                isButtonEnabled ? const Offset(1, 1) : const Offset(0.98, 0.98),
-            duration: 300.ms,
-            curve: Curves.easeInOut,
-          );
-    });
+        ),
+      ),
+    );
   }
 
   SliverToBoxAdapter _buildDetailView(
@@ -1417,10 +731,7 @@ SliverToBoxAdapter _buildDaftarView(BuildContext context, bool isSmallScreen) {
                   ),
                 ],
               ),
-            )
-                .animate()
-                .fadeIn(delay: 200.ms)
-                .scale(delay: 200.ms, duration: 400.ms);
+            ).animate().fadeIn(delay: 200.ms).scale(delay: 200.ms, duration: 400.ms);
           }
 
           final formattedDate = _formatDate(transaction.transactionDate);
@@ -1719,6 +1030,7 @@ SliverToBoxAdapter _buildDaftarView(BuildContext context, bool isSmallScreen) {
 
     return GestureDetector(
       onTap: () {
+        _controller.searchFocusNode.unfocus();
         _selectedTransactionId.value = transaction.id;
       },
       child: Container(
