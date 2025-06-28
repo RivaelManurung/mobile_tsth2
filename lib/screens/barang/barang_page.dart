@@ -211,8 +211,7 @@ class BarangListPage extends StatelessWidget {
                       color: const Color(0xFF1A1D1F),
                     ),
                   ),
-                  if (_controller.errorMessage.value
-                      .contains('Unauthenticated'))
+                  if (_controller.errorMessage.value.contains('Unauthenticated'))
                     Padding(
                       padding: const EdgeInsets.only(top: 16.0),
                       child: ElevatedButton(
@@ -379,8 +378,7 @@ class BarangListPage extends StatelessWidget {
     );
   }
 
-  SliverToBoxAdapter _buildDetailView(
-      BuildContext context, bool isSmallScreen) {
+  SliverToBoxAdapter _buildDetailView(BuildContext context, bool isSmallScreen) {
     return SliverToBoxAdapter(
       child: Obx(() {
         if (_controller.isLoading.value) {
@@ -623,22 +621,20 @@ class BarangListPage extends StatelessWidget {
                     ),
                     const Divider(height: 24),
                     _buildDetailRow(
-                      label: 'Jenis Barang ID',
-                      value:
-                          barang.jenisbarangId?.toString() ?? 'Tidak diketahui',
+                      label: 'Jenis Barang',
+                      value: barang.jenisbarangNama ?? 'Tidak diketahui',
                       isSmallScreen: isSmallScreen,
                     ),
                     const Divider(height: 24),
                     _buildDetailRow(
-                      label: 'Satuan ID',
-                      value: barang.satuanId?.toString() ?? 'Tidak diketahui',
+                      label: 'Satuan',
+                      value: barang.satuanNama ?? 'Tidak diketahui',
                       isSmallScreen: isSmallScreen,
                     ),
                     const Divider(height: 24),
                     _buildDetailRow(
-                      label: 'Kategori ID',
-                      value: barang.barangcategoryId?.toString() ??
-                          'Tidak diketahui',
+                      label: 'Kategori',
+                      value: barang.barangcategoryNama ?? 'Tidak diketahui',
                       isSmallScreen: isSmallScreen,
                     ),
                     const Divider(height: 24),

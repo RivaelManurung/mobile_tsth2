@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:inventory_tsth2/Model/user_model.dart';
@@ -16,7 +16,7 @@ class UserService {
     AuthService? authService,
   })  : _dio = dio ??
             Dio(BaseOptions(
-              baseUrl: 'http://192.168.137.1:8000/api',
+              baseUrl: 'http://172.27.1.108:8000/api',
               headers: {'Accept': 'application/json'},
             )),
         _authService = authService ?? AuthService() {
@@ -82,29 +82,82 @@ class UserService {
     if (token == null) throw Exception('No token found');
 
     try {
-      FormData formData = FormData.fromMap({
+      print('--- UserService updateUser Debug ---');
+      print('User ID: $userId');
+      print('Name: ${user.name}');
+      print('Email: ${user.email}');
+      print('Phone: ${user.phoneNumber}');
+      print('Address: ${user.address}');
+      print('-----------------------------------');
+
+      Map<String, dynamic> requestData = {
         'name': user.name,
-        'email': user.email,
-        'phone': user.phoneNumber,
-        'address': user.address,
-      });
+      };
+
+      if (user.phoneNumber != null && user.phoneNumber!.trim().isNotEmpty) {
+        requestData['phone_number'] = user.phoneNumber!.trim();
+      }
+
+      if (user.address != null && user.address!.trim().isNotEmpty) {
+        requestData['address'] = user.address!.trim();
+      }
+
+      print('Request data: $requestData');
 
       final response = await _dio.put(
         '/users/$userId',
-        data: formData,
+        data: requestData,
         options: Options(
           headers: {
             'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
           },
         ),
       );
 
+      print('Response status: ${response.statusCode}');
+      print('Response data: ${response.data}');
+
       if (response.statusCode == 200) {
-        return User.fromJson(response.data['data']);
+        final updatedUser = User.fromJson(response.data['data']);
+        print('Updated user phone: ${updatedUser.phoneNumber}');
+        return updatedUser;
       } else {
         throw Exception(response.data['message'] ?? 'Failed to update user');
       }
     } on DioException catch (e) {
+      print('DioException in updateUser: ${e.response?.data}');
+      throw _handleError(e);
+    }
+  }
+
+  Future<String> updateEmail(String newEmail) async {
+    final token = await _getToken();
+    if (token == null) throw Exception('No token found');
+
+    try {
+      final response = await _dio.put(
+        '/user/update-email',
+        data: {'email': newEmail},
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
+
+      print('Update email response status: ${response.statusCode}');
+      print('Update email response data: ${response.data}');
+
+      if (response.statusCode == 200) {
+        return response.data['message'] ??
+            'Link verifikasi telah dikirim ke email baru.';
+      } else {
+        throw Exception(response.data['message'] ?? 'Gagal memperbarui email');
+      }
+    } on DioException catch (e) {
+      print('DioException in updateEmail: ${e.response?.data}');
       throw _handleError(e);
     }
   }
@@ -175,7 +228,7 @@ class UserService {
 
     try {
       final response = await _dio.post(
-        '/users/change-password',
+        '$baseUrl/users/change-password',
         data: {
           'current_password': currentPassword,
           'new_password': newPassword,
@@ -188,7 +241,24 @@ class UserService {
           },
         ),
       );
-      if (response.statusCode != 200) {
+
+      if (response.statusCode == 200) {
+        return; // Success
+      } else if (response.statusCode == 422) {
+        final errorData = response.data;
+        if (errorData['errors'] != null) {
+          final errors = errorData['errors'] as Map<String, dynamic>;
+          String errorMessage = '';
+          errors.forEach((field, messages) {
+            if (messages is List) {
+              errorMessage += '${messages.join('\n')} ';
+            }
+          });
+          throw Exception(errorMessage.trim());
+        } else {
+          throw Exception(errorData['message'] ?? 'Validasi gagal');
+        }
+      } else {
         throw Exception(
             response.data['message'] ?? 'Failed to change password');
       }

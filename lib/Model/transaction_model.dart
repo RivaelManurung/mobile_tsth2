@@ -62,7 +62,7 @@ class TransactionDetail {
     print('Parsing TransactionDetail JSON: $json');
     return TransactionDetail(
       barang: Barang.fromJson(json['barang'] as Map<String, dynamic>? ?? {'id': 0, 'barang_nama': 'Unknown', 'barang_kode': 'UNKNOWN'}),
-      gudang: Gudang.fromJson(json['gudang'] as Map<String, dynamic>? ?? {'id': 0, 'nama': 'Unknown'}),
+      gudang: Gudang.fromJson(json['gudang'] as Map<String, dynamic>? ?? {'id': 0, 'name': 'Unknown'}), // Perbaiki 'nama' menjadi 'name'
       quantity: json['quantity'] as int? ?? 0,
       tanggalKembali: json['tanggal_kembali']?.toString(),
     );

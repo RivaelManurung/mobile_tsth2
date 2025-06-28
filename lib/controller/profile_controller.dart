@@ -29,10 +29,15 @@ class ProfileController {
     required String currentPassword,
     required String newPassword,
   }) async {
-    await _userService.changePassword(
-      currentPassword: currentPassword,
-      newPassword: newPassword,
-    );
+    try {
+      await _userService.changePassword(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      );
+    } catch (e) {
+      // Re-throw the exception to be handled by the caller
+      rethrow;
+    }
   }
 
   Future<void> logout() async {

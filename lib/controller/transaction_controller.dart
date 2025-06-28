@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:inventory_tsth2/Model/barang_gudang_model.dart';
 import 'package:inventory_tsth2/Model/barang_model.dart';
 import 'package:inventory_tsth2/Model/transaction_model.dart';
 import 'package:inventory_tsth2/Model/transaction_type_model.dart';
@@ -30,6 +31,7 @@ class TransactionController extends GetxService {
   final RxString searchQuery = ''.obs;
   final RxList<TransactionType> transactionTypes = <TransactionType>[].obs;
   final RxList<Barang> barangs = <Barang>[].obs;
+  final RxList<BarangGudang> barangGudangs = <BarangGudang>[].obs;
   final RxString scannedBarcode = ''.obs;
   final RxInt selectedTransactionTypeId = 0.obs;
   final RxList<Map<String, dynamic>> scannedItems = <Map<String, dynamic>>[].obs;
@@ -59,9 +61,10 @@ class TransactionController extends GetxService {
     super.onInit();
     _setupSearchListener();
     loadUserData();
-    fetchAllTransactions();
+    fetchAllTransactions(); // Fetch all transactions without date filter
     fetchTransactionTypes();
     fetchBarangs();
+    fetchBarangGudangs();
 
     searchFocusNode.addListener(() {
       print('Search FocusNode: hasFocus=${searchFocusNode.hasFocus}');
@@ -74,6 +77,7 @@ class TransactionController extends GetxService {
         fetchAllTransactions();
         fetchTransactionTypes();
         fetchBarangs();
+        fetchBarangGudangs();
       }
     });
   }
@@ -85,7 +89,7 @@ class TransactionController extends GetxService {
       }
     });
 
-    debounce(searchQuery, (_) => filterTransactions(),
+    debounce(searchQuery, (_) => searchItems(searchQuery.value),
         time: const Duration(milliseconds: 500));
   }
 
@@ -274,11 +278,33 @@ class TransactionController extends GetxService {
     }
   }
 
+  Future<void> fetchBarangGudangs() async {
+    try {
+      isLoading(true);
+      errorMessage('');
+      final items = await _barangService.getAllBarangWithGudangs();
+      print('Raw data from getAllBarangWithGudangs: $items');
+      final barangGudangList = items is List<BarangGudang>
+          ? items
+          : items.map((item) => BarangGudang.fromJson(item as Map<String, dynamic>)).toList();
+      print('Parsed BarangGudang list: ${barangGudangList.map((bg) => bg.toJson()).toList()}');
+      barangGudangs.assignAll(barangGudangList);
+    } catch (e) {
+      errorMessage('Gagal memuat data barang gudang: $e');
+      showErrorSnackbar('Error', errorMessage.value);
+      if (errorMessage.value.contains('No token found')) {
+        await _storage.delete(key: 'auth_token');
+        await _storage.delete(key: 'user');
+        Get.offAllNamed(RoutesName.login);
+      }
+    } finally {
+      isLoading(false);
+    }
+  }
+
   Future<void> fetchAllTransactions({
     int? transactionTypeId,
     String? transactionCode,
-    String? dateStart,
-    String? dateEnd,
   }) async {
     try {
       isLoading(true);
@@ -286,11 +312,10 @@ class TransactionController extends GetxService {
       final transactions = await _transactionService.getAllTransactions(
         transactionTypeId: transactionTypeId,
         transactionCode: transactionCode,
-        dateStart: dateStart,
-        dateEnd: dateEnd,
+        // Remove dateStart and dateEnd parameters
       );
       transactionList.assignAll(transactions);
-      filterTransactions();
+      applyClientSideFilter(); // Apply client-side filter after fetching
     } catch (e) {
       errorMessage('Gagal memuat transaksi: $e');
       showErrorSnackbar('Error', errorMessage.value);
@@ -498,6 +523,7 @@ class TransactionController extends GetxService {
 
       await fetchAllTransactions();
       await fetchBarangs();
+      await fetchBarangGudangs();
 
       showSuccessSnackbar('Sukses', 'Transaksi berhasil disimpan');
     } catch (e) {
@@ -522,19 +548,42 @@ class TransactionController extends GetxService {
   void filterTransactions() {
     print('Filtering transactions with query: "${searchQuery.value}"');
     final query = searchQuery.value.toLowerCase();
-    if (query.isEmpty) {
-      filteredTransactionList.assignAll(transactionList);
-    } else {
-      filteredTransactionList.assignAll(
-        transactionList.where((item) {
-          final matchesCode = item.transactionCode?.toLowerCase().contains(query) ?? false;
-          final matchesType = item.transactionType?.name?.toLowerCase().contains(query) ?? false;
-          return matchesCode || matchesType;
-        }).toList(),
-      );
-    }
+    filteredTransactionList.assignAll(filteredTransactionList.where((item) {
+      final matchesCode = item.transactionCode?.toLowerCase().contains(query) ?? false;
+      final matchesType = item.transactionType?.name?.toLowerCase().contains(query) ?? false;
+      return matchesCode || matchesType;
+    }).toList());
     print('Filtered ${filteredTransactionList.length} transactions');
     filteredTransactionList.refresh();
+  }
+
+  void applyClientSideFilter() {
+    final dateRange = getDateRange(selectedDateRange.value);
+    final startDate = dateRange['date_start'] != null
+        ? DateTime.parse(dateRange['date_start']!).toLocal()
+        : null;
+    final endDate = dateRange['date_end'] != null
+        ? DateTime.parse(dateRange['date_end']!).add(const Duration(days: 1)).toLocal()
+        : null;
+
+    final filtered = transactionList.where((transaction) {
+      if (startDate == null || endDate == null) return true; // No filter if null
+      final transactionDate = DateTime.parse(transaction.transactionDate!).toLocal();
+      print('Checking transaction ${transaction.transactionCode}: '
+          'date=$transactionDate, start=$startDate, end=$endDate');
+      return transactionDate.isAfter(startDate) && transactionDate.isBefore(endDate);
+    }).toList();
+
+    filteredTransactionList.assignAll(filtered);
+    print('Client-side filtered transactions: ${filtered.map((t) => t.transactionCode).toList()}');
+
+    filterTransactions(); // Apply search query filter if any
+
+    if (filteredTransactionList.isEmpty) {
+      showInfoSnackbar('Info', 'Tidak ada transaksi untuk filter yang dipilih');
+    } else {
+      showSuccessSnackbar('Sukses', 'Filter berhasil diterapkan');
+    }
   }
 
   Future<void> applyFilter() async {
@@ -545,39 +594,14 @@ class TransactionController extends GetxService {
       final transactionTypeId = selectedTransactionTypeId.value == 0
           ? null
           : selectedTransactionTypeId.value;
-      final dateRange = getDateRange(selectedDateRange.value);
 
-      if (selectedDateRange.value == 'Custom') {
-        if (dateRange['date_start'] == null || dateRange['date_end'] == null) {
-          throw Exception('Tanggal mulai dan selesai harus diisi dengan format yang valid');
-        }
-        final startDate = DateTime.tryParse(dateRange['date_start']!);
-        final endDate = DateTime.tryParse(dateRange['date_end']!);
-        if (startDate == null || endDate == null) {
-          throw Exception('Format tanggal tidak valid');
-        }
-        if (endDate.isBefore(startDate)) {
-          throw Exception('Tanggal selesai tidak boleh sebelum tanggal mulai');
-        }
-      }
-
-      print('Applying filter with: transactionTypeId=$transactionTypeId, '
-          'dateStart=${dateRange['date_start']}, dateEnd=${dateRange['date_end']}');
-
-      final transactions = await _transactionService.getAllTransactions(
+      // Fetch all transactions without date parameters
+      await fetchAllTransactions(
         transactionTypeId: transactionTypeId,
-        dateStart: dateRange['date_start'],
-        dateEnd: dateRange['date_end'],
       );
 
-      transactionList.assignAll(transactions);
-      filterTransactions();
-
-      if (transactionList.isEmpty) {
-        showInfoSnackbar('Info', 'Tidak ada transaksi untuk filter yang dipilih');
-      } else {
-        showSuccessSnackbar('Sukses', 'Filter berhasil diterapkan');
-      }
+      // Apply client-side filter
+      applyClientSideFilter();
     } catch (e) {
       errorMessage('Gagal menerapkan filter: $e');
       showErrorSnackbar('Error', errorMessage.value);
@@ -622,11 +646,26 @@ class TransactionController extends GetxService {
           .where((barang) =>
               (barang.barangNama?.toLowerCase().contains(lowerQuery) ?? false) ||
               (barang.barangKode?.toLowerCase().contains(lowerQuery) ?? false))
-          .map((barang) => {
-                'barang_kode': barang.barangKode,
-                'barang_nama': barang.barangNama,
-              })
-          .toList(),
+          .map((barang) {
+            final barangGudang = barangGudangs.firstWhere(
+              (bg) => bg.barangId == barang.id,
+              orElse: () => BarangGudang(
+                barangId: barang.id,
+                gudangId: 0,
+                stokTersedia: 0,
+                stokDipinjam: 0,
+                stokMaintenance: 0,
+              ),
+            );
+            print('Mapping barang: ${barang.barangNama}, gudang: ${barangGudang.gudang?.name}, stok: ${barangGudang.stokTersedia}');
+            return {
+              'barang_kode': barang.barangKode,
+              'barang_nama': barang.barangNama,
+              'stok_tersedia': barangGudang.stokTersedia,
+              'gudang_name': barangGudang.gudang?.name ?? 'Tidak Diketahui',
+              'satuan': barang.satuanNama ?? 'Unit',
+            };
+          }).toList(),
     );
   }
 

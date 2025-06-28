@@ -1,3 +1,4 @@
+// gudang_controller.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:inventory_tsth2/Model/gudang_model.dart';
@@ -61,21 +62,26 @@ class GudangController extends GetxController {
   Future<void> fetchAllUsers() async {
     try {
       print('Fetching users...');
+      isLoading(true);
+      errorMessage('');
       final users = await _userService.getAllUsers();
       userList.assignAll(users);
       print('Users fetched successfully: ${userList.length} users');
     } catch (e) {
       print('Error fetching users: $e');
-      Get.snackbar(
-        'Gagal',
-        'Gagal memuat daftar pengguna: $e',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-        margin: const EdgeInsets.all(16),
-        borderRadius: 12,
-        duration: const Duration(seconds: 3),
-      );
+      errorMessage(e.toString());
+      // Get.snackbar(
+      //   'Gagal',
+      //   'Gagal memuat daftar pengguna: $e',
+      //   snackPosition: SnackPosition.TOP,
+      //   backgroundColor: Colors.red,
+      //   colorText: Colors.white,
+      //   margin: const EdgeInsets.all(16),
+      //   borderRadius: 12,
+      //   duration: const Duration(seconds: 3),
+      // );
+    } finally {
+      isLoading(false);
     }
   }
 
@@ -92,7 +98,6 @@ class GudangController extends GetxController {
       print('Error fetching gudang: $e');
       errorMessage(e.toString());
       if (errorMessage.value.contains('No token found')) {
-        print('Redirecting to login...');
         Get.offAllNamed(RoutesName.login);
       }
     } finally {
@@ -102,6 +107,7 @@ class GudangController extends GetxController {
 
   Future<void> getGudangById(int id) async {
     try {
+      print('Fetching gudang by ID: $id');
       isLoading(true);
       errorMessage('');
       final gudang = await _service.getGudangById(id);

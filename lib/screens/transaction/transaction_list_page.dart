@@ -73,7 +73,8 @@ class TransactionListPage extends StatelessWidget {
         body: SmartRefresher(
           controller: _refreshController,
           onRefresh: _refreshData,
-          enablePullDown: _selectedTransactionId.value == null && !_controller.searchFocusNode.hasFocus,
+          enablePullDown: _selectedTransactionId.value == null &&
+              !_controller.searchFocusNode.hasFocus,
           header: const ClassicHeader(
             idleText: 'Tarik untuk memperbarui',
             releaseText: 'Lepas untuk memperbarui',
@@ -390,7 +391,10 @@ class TransactionListPage extends StatelessWidget {
                       ),
                     ],
                   ),
-                ).animate().fadeIn(delay: 200.ms).scale(delay: 200.ms, duration: 400.ms);
+                )
+                    .animate()
+                    .fadeIn(delay: 200.ms)
+                    .scale(delay: 200.ms, duration: 400.ms);
               }
               if (_controller.filteredTransactionList.isEmpty) {
                 return Center(
@@ -415,15 +419,20 @@ class TransactionListPage extends StatelessWidget {
                       ),
                     ],
                   ),
-                ).animate().fadeIn(delay: 200.ms).scale(delay: 200.ms, duration: 400.ms);
+                )
+                    .animate()
+                    .fadeIn(delay: 200.ms)
+                    .scale(delay: 200.ms, duration: 400.ms);
               }
               return ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: _controller.filteredTransactionList.length,
                 itemBuilder: (context, index) {
-                  final transaction = _controller.filteredTransactionList[index];
-                  return _buildTransactionCard(transaction, index, isSmallScreen);
+                  final transaction =
+                      _controller.filteredTransactionList[index];
+                  return _buildTransactionCard(
+                      transaction, index, isSmallScreen);
                 },
               );
             }),
@@ -731,7 +740,10 @@ class TransactionListPage extends StatelessWidget {
                   ),
                 ],
               ),
-            ).animate().fadeIn(delay: 200.ms).scale(delay: 200.ms, duration: 400.ms);
+            )
+                .animate()
+                .fadeIn(delay: 200.ms)
+                .scale(delay: 200.ms, duration: 400.ms);
           }
 
           final formattedDate = _formatDate(transaction.transactionDate);
@@ -887,7 +899,6 @@ class TransactionListPage extends StatelessWidget {
                         color: const Color(0xFF1A1D1F),
                       ),
                     ),
-                    const SizedBox(height: 8),
                     ...transaction.items.map((item) => Padding(
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           child: Container(
@@ -940,14 +951,6 @@ class TransactionListPage extends StatelessWidget {
                                       const SizedBox(height: 4),
                                       Text(
                                         'Kode: ${item.barang?.barangKode ?? 'Tidak Diketahui'}',
-                                        style: TextStyle(
-                                          fontSize: isSmallScreen ? 12 : 13,
-                                          color: const Color(0xFF6F767E),
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      Text(
-                                        'Gudang: ${item.gudang?.name ?? 'Tidak Diketahui'}',
                                         style: TextStyle(
                                           fontSize: isSmallScreen ? 12 : 13,
                                           color: const Color(0xFF6F767E),

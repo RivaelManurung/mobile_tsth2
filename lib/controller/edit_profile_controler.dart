@@ -13,15 +13,17 @@ class EditProfileController extends GetxController {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
   final TextEditingController addressController = TextEditingController();
+  String? _originalEmail;
 
   EditProfileController({
     required User user,
     UserService? userService,
   }) : _userService = userService ?? UserService() {
     nameController.text = user.name;
-    emailController.text = user.email ?? '';
+    emailController.text = user.email;
     phoneController.text = user.phoneNumber ?? '';
     addressController.text = user.address ?? '';
+    _originalEmail = user.email;
   }
 
   String getPhotoUrl(String? photoUrl) {
@@ -30,57 +32,85 @@ class EditProfileController extends GetxController {
     return '$baseUrl/storage/$photoUrl';
   }
 
-  Future<User> saveProfile(User user) async {
+  Future<Map<String, dynamic>> saveProfile(User user) async {
     if (!formKey.currentState!.validate()) {
       print('Form validation failed');
       throw Exception('Form validation failed');
     }
 
-    // Print input values
+    // Print input values for debugging
     print('--- Profile Input Values ---');
     print('Name: ${nameController.text}');
     print('Email: ${emailController.text}');
-    print('Phone: ${phoneController.text.isEmpty ? "Not provided" : phoneController.text}');
-    print('Address: ${addressController.text.isEmpty ? "Not provided" : addressController.text}');
+    print(
+        'Phone: ${phoneController.text.isEmpty ? "Not provided" : phoneController.text}');
+    print(
+        'Address: ${addressController.text.isEmpty ? "Not provided" : addressController.text}');
     print('User ID: ${user.id}');
-    print('Roles: ${user.roles}');
-    print('Created At: ${user.createdAt}');
     print('Photo URL: ${user.photoUrl ?? "Not provided"}');
     print('---------------------------');
 
-    final phoneInput = phoneController.text.isEmpty ? null : phoneController.text;
-    if (phoneInput != null && phoneInput.length > 15) {
-      print('Error: Phone number exceeds 15 characters: $phoneInput');
-      throw Exception('Phone number exceeds 15 characters');
+    // Clean and validate phone input
+    String? phoneInput;
+    if (phoneController.text.isNotEmpty) {
+      phoneInput = phoneController.text.trim();
+
+      // Validate phone length
+      final digitsOnly = phoneInput.replaceAll(RegExp(r'\D'), '');
+      if (digitsOnly.length > 15) {
+        print('Error: Phone number exceeds 15 digits: $phoneInput');
+        throw Exception('Phone number exceeds 15 characters');
+      }
     }
 
+    // Create the updated user object for non-email fields
     final updatedUser = User(
       id: user.id,
-      name: nameController.text,
-      email: emailController.text,
+      name: nameController.text.trim(),
+      email: _originalEmail!, // Keep original email for updateUser
       phoneNumber: phoneInput,
-      address: addressController.text.isEmpty ? null : addressController.text,
+      address:
+          addressController.text.isEmpty ? null : addressController.text.trim(),
       photoUrl: user.photoUrl,
       roles: user.roles,
       createdAt: user.createdAt,
     );
 
-    // Log the payload
-    print('--- Sending User Payload ---');
-    print(jsonEncode(updatedUser.toJson()));
-    print('---------------------------');
+    try {
+      String? emailUpdateMessage;
+      // Handle email update separately if changed
+      if (emailController.text.trim() != _originalEmail) {
+        emailUpdateMessage = await _userService.updateEmail(
+          emailController.text.trim(),
+        );
+      }
 
-    final savedUser = await _userService.updateUser(user.id, updatedUser);
+      // Log the payload
+      print('--- Sending User Payload (non-email) ---');
+      print(jsonEncode(updatedUser.toJson()));
+      print('---------------------------');
 
-    // Validate returned phone number
-    if (savedUser.phoneNumber != phoneInput) {
-      print('Error: Returned phone number (${savedUser.phoneNumber}) does not match input ($phoneInput)');
-      throw Exception('Phone number mismatch after save');
+      // Update non-email fields
+      final savedUser = await _userService.updateUser(user.id, updatedUser);
+
+      // Validate returned phone number
+      if (phoneInput != null && savedUser.phoneNumber != phoneInput) {
+        print(
+            'Warning: Returned phone number (${savedUser.phoneNumber}) does not match input ($phoneInput)');
+        throw Exception(
+            'Phone number update failed: server returned ${savedUser.phoneNumber} instead of $phoneInput');
+      }
+
+      print('Saved user phoneNumber: ${savedUser.phoneNumber}');
+      print('Saved user photoUrl: ${savedUser.photoUrl}');
+      return {
+        'user': savedUser,
+        'emailMessage': emailUpdateMessage,
+      };
+    } catch (e) {
+      print('Error saving profile: $e');
+      rethrow;
     }
-
-    print('Saved user phoneNumber: ${savedUser.phoneNumber}');
-    print('Saved user photoUrl: ${savedUser.photoUrl}');
-    return savedUser;
   }
 
   Future<User> updateAvatar(File image) async {
@@ -109,42 +139,61 @@ class EditProfileController extends GetxController {
   }
 
   String? validateName(String? value) {
-    if (value == null || value.isEmpty) return 'Please enter your name';
-    if (value.length > 255) return 'Name must not exceed 255 characters';
+    if (value == null || value.trim().isEmpty) return 'Please enter your name';
+    if (value.trim().length > 255) return 'Name must not exceed 255 characters';
     return null;
   }
 
   String? validateEmail(String? value) {
-    if (value == null || value.isEmpty) return 'Please enter your email';
-    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+    if (value == null || value.trim().isEmpty) return 'Please enter your email';
+    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value.trim())) {
       return 'Please enter a valid email';
     }
     return null;
   }
 
   String? validatePhone(String? value) {
-  print('Input phone number: $value');
-  if (value != null && value.isNotEmpty) {
-    value = value.trim();
-    print('Phone length: ${value.length}');
-    // Enforce 10-15 digits, no leading '+' for local numbers
-    final regex = RegExp(r'^\d{10,15}$');
-    print('Regex check: ${regex.hasMatch(value)}');
-    if (value.length < 10 || value.length > 15) {
-      print('Validation error: Phone number must be 10-15 digits');
-      return 'Phone number must be 10-15 digits';
+    print('Input phone number: $value');
+    if (value != null && value.trim().isNotEmpty) {
+      value = value.trim();
+      print('Phone length: ${value.length}');
+
+      // Remove any non-digit characters for validation
+      final digitsOnly = value.replaceAll(RegExp(r'\D'), '');
+      print('Digits only: $digitsOnly');
+      print('Digits length: ${digitsOnly.length}');
+
+      // Validate length (10-15 digits)
+      if (digitsOnly.length < 10 || digitsOnly.length > 15) {
+        print('Validation error: Phone number must be 10-15 digits');
+        return 'Phone number must be 10-15 digits';
+      }
+
+      // For Indonesian numbers, allow formats like:
+      // 08xxxxxxxxxx (starts with 08)
+      // 62xxxxxxxxxx (starts with 62)
+      // +62xxxxxxxxx (starts with +62)
+      if (value.startsWith('+')) {
+        // Remove + and validate
+        final withoutPlus = value.substring(1);
+        if (!RegExp(r'^\d+$').hasMatch(withoutPlus)) {
+          print('Validation error: Invalid characters in phone number');
+          return 'Please enter a valid phone number';
+        }
+      } else {
+        // Must be all digits
+        if (!RegExp(r'^\d+$').hasMatch(value)) {
+          print('Validation error: Please enter digits only');
+          return 'Please enter a valid phone number (digits only)';
+        }
+      }
     }
-    if (!regex.hasMatch(value)) {
-      print('Validation error: Please enter a valid phone number (digits only)');
-      return 'Please enter a valid phone number (digits only)';
-    }
+    print('Phone validation passed');
+    return null;
   }
-  print('Phone validation passed');
-  return null;
-}
 
   String? validateAddress(String? value) {
-    if (value != null && value.isNotEmpty && value.length > 500) {
+    if (value != null && value.trim().isNotEmpty && value.trim().length > 500) {
       return 'Address must not exceed 500 characters';
     }
     return null;

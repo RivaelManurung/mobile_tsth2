@@ -44,15 +44,18 @@ class _EditProfilePageState extends State<EditProfilePage> {
         _isLoading = false;
       });
       // Log initial avatar URL
-      print('Initial avatar URL: ${_controller.getPhotoUrl(_currentUser.photoUrl)}');
+      print(
+          'Initial avatar URL: ${_controller.getPhotoUrl(_currentUser.photoUrl)}');
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error initializing: $e', style: GoogleFonts.poppins()),
+            content:
+                Text('Error initializing: $e', style: GoogleFonts.poppins()),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
       }
@@ -77,10 +80,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Gagal memilih gambar: $e', style: GoogleFonts.poppins()),
+            content:
+                Text('Gagal memilih gambar: $e', style: GoogleFonts.poppins()),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
       }
@@ -102,21 +107,23 @@ class _EditProfilePageState extends State<EditProfilePage> {
           _controller.nameController.text = _currentUser.name;
           _controller.emailController.text = _currentUser.email;
           _controller.phoneController.text = _currentUser.phoneNumber ?? '';
-          _controller.addressController.text = _currentUser.address ?? '';
           _selectedImage = null;
         });
         _authController.updateUser(updatedUser);
-        if (_currentUser.photoUrl != null && _currentUser.photoUrl!.isNotEmpty) {
+        if (_currentUser.photoUrl != null &&
+            _currentUser.photoUrl!.isNotEmpty) {
           final avatarUrl = _controller.getPhotoUrl(_currentUser.photoUrl!);
           print('Clearing cache for: $avatarUrl');
           await CachedNetworkImage.evictFromCache(avatarUrl);
         }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Avatar berhasil diperbarui', style: GoogleFonts.poppins()),
+            content: Text('Avatar berhasil diperbarui',
+                style: GoogleFonts.poppins()),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
         Navigator.pop(context, true);
@@ -125,10 +132,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Gagal memperbarui avatar: $e', style: GoogleFonts.poppins()),
+            content: Text('Gagal memperbarui avatar: $e',
+                style: GoogleFonts.poppins()),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
       }
@@ -154,20 +163,22 @@ class _EditProfilePageState extends State<EditProfilePage> {
           _controller.nameController.text = _currentUser.name;
           _controller.emailController.text = _currentUser.email;
           _controller.phoneController.text = _currentUser.phoneNumber ?? '';
-          _controller.addressController.text = _currentUser.address ?? '';
         });
         _authController.updateUser(updatedUser);
-        if (_currentUser.photoUrl != null && _currentUser.photoUrl!.isNotEmpty) {
+        if (_currentUser.photoUrl != null &&
+            _currentUser.photoUrl!.isNotEmpty) {
           final avatarUrl = _controller.getPhotoUrl(_currentUser.photoUrl!);
           print('Clearing cache for: $avatarUrl');
           await CachedNetworkImage.evictFromCache(avatarUrl);
         }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Avatar berhasil dihapus', style: GoogleFonts.poppins()),
+            content:
+                Text('Avatar berhasil dihapus', style: GoogleFonts.poppins()),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
         Navigator.pop(context, true);
@@ -176,10 +187,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Gagal menghapus avatar: $e', style: GoogleFonts.poppins()),
+            content: Text('Gagal menghapus avatar: $e',
+                style: GoogleFonts.poppins()),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
       }
@@ -202,33 +215,23 @@ class _EditProfilePageState extends State<EditProfilePage> {
     });
 
     try {
-      final updatedUser = User(
-        id: _currentUser.id,
-        name: _controller.nameController.text,
-        email: _controller.emailController.text,
-        phoneNumber: _controller.phoneController.text.isEmpty
-            ? null
-            : _controller.phoneController.text,
-        address: _controller.addressController.text.isEmpty
-            ? null
-            : _controller.addressController.text,
-        photoUrl: _currentUser.photoUrl,
-        roles: _currentUser.roles,
-        createdAt: _currentUser.createdAt,
-      );
-
-      final savedUser = await _controller.saveProfile(updatedUser);
+      final result = await _controller.saveProfile(_currentUser);
       if (mounted) {
         setState(() {
-          _currentUser = savedUser;
+          _currentUser = result['user'] as User;
         });
-        _authController.updateUser(savedUser);
+        _authController.updateUser(result['user'] as User);
+        String message = 'Profil berhasil diperbarui';
+        if (result['emailMessage'] != null) {
+          message += '. ${result['emailMessage']}';
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Profil berhasil diperbarui', style: GoogleFonts.poppins()),
+            content: Text(message, style: GoogleFonts.poppins()),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
         Navigator.pop(context, true);
@@ -237,10 +240,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Gagal memperbarui profil: $e', style: GoogleFonts.poppins()),
+            content: Text('Gagal memperbarui profil: ${e.toString()}',
+                style: GoogleFonts.poppins()),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
       }
@@ -334,7 +339,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
             height: 130,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: primaryColor.withOpacity(0.5), width: 4),
+              border:
+                  Border.all(color: primaryColor.withOpacity(0.5), width: 4),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.1),
@@ -353,16 +359,21 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         return _buildInitialsAvatar();
                       },
                     )
-                  : (_currentUser.photoUrl != null && _currentUser.photoUrl!.isNotEmpty
+                  : (_currentUser.photoUrl != null &&
+                          _currentUser.photoUrl!.isNotEmpty
                       ? CachedNetworkImage(
-                          imageUrl: _controller.getPhotoUrl(_currentUser.photoUrl!),
+                          imageUrl:
+                              _controller.getPhotoUrl(_currentUser.photoUrl!),
                           fit: BoxFit.cover,
-                          placeholder: (context, url) => const CircularProgressIndicator(),
+                          placeholder: (context, url) =>
+                              const CircularProgressIndicator(),
                           errorWidget: (context, url, error) {
-                            print('EditProfile avatar load error: $error, URL: $url');
+                            print(
+                                'EditProfile avatar load error: $error, URL: $url');
                             return _buildInitialsAvatar();
                           },
-                          cacheKey: '${_currentUser.photoUrl}_${_currentUser.id}',
+                          cacheKey:
+                              '${_currentUser.photoUrl}_${_currentUser.id}',
                         )
                       : _buildInitialsAvatar()),
             ),
@@ -399,9 +410,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       ),
               ),
             ),
-            if (_currentUser.photoUrl != null && _currentUser.photoUrl!.isNotEmpty)
+            if (_currentUser.photoUrl != null &&
+                _currentUser.photoUrl!.isNotEmpty)
               const SizedBox(height: 8),
-            if (_currentUser.photoUrl != null && _currentUser.photoUrl!.isNotEmpty)
+            if (_currentUser.photoUrl != null &&
+                _currentUser.photoUrl!.isNotEmpty)
               GestureDetector(
                 onTap: _isUpdatingAvatar ? null : _deleteAvatar,
                 child: Container(
@@ -469,14 +482,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
               icon: Icons.phone_outlined,
               keyboardType: TextInputType.phone,
               validator: _controller.validatePhone,
-            ),
-            const SizedBox(height: 16),
-            _buildTextField(
-              controller: _controller.addressController,
-              label: 'Alamat',
-              icon: Icons.location_on_outlined,
-              maxLines: 3,
-              validator: _controller.validateAddress,
             ),
           ],
         ),

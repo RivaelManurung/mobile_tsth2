@@ -6,9 +6,9 @@ class Barang {
   final double barangHarga;
   final String? barangGambar;
   final String barangKode;
-  final int? jenisbarangId;
-  final int? satuanId;
-  final int? barangcategoryId;
+  final String? jenisbarangNama; // Menggunakan nama, bukan ID
+  final String? satuanNama;     // Menggunakan nama, bukan ID
+  final String? barangcategoryNama; // Menggunakan nama, bukan ID
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -19,9 +19,9 @@ class Barang {
     required this.barangHarga,
     this.barangGambar,
     required this.barangKode,
-    this.jenisbarangId,
-    this.satuanId,
-    this.barangcategoryId,
+    this.jenisbarangNama,
+    this.satuanNama,
+    this.barangcategoryNama,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -30,14 +30,14 @@ class Barang {
     print('Parsing Barang JSON: $json'); // Debug log
     return Barang(
       id: json['id'] ?? 0,
-      barangNama: json['nama']?.toString() ?? json['barang_nama']?.toString() ?? 'Unknown',
+      barangNama: json['barang_nama']?.toString() ?? json['nama']?.toString() ?? 'Unknown',
       barangSlug: json['barang_slug']?.toString() ?? 'unknown-slug',
       barangHarga: double.tryParse(json['barang_harga']?.toString() ?? '0.0') ?? 0.0,
       barangGambar: json['barang_gambar'],
-      barangKode: json['kode']?.toString() ?? json['barang_kode']?.toString() ?? 'UNKNOWN',
-      jenisbarangId: json['jenisbarang_id'],
-      satuanId: json['satuan_id'],
-      barangcategoryId: json['barangcategory_id'],
+      barangKode: json['barang_kode']?.toString() ?? json['kode']?.toString() ?? 'UNKNOWN',
+      jenisbarangNama: json['jenisBarang']?.toString() ?? 'Tidak diketahui', // Ambil dari 'jenisBarang'
+      satuanNama: json['satuan']?.toString() ?? 'Tidak diketahui',          // Ambil dari 'satuan'
+      barangcategoryNama: json['category']?.toString() ?? 'Tidak diketahui', // Ambil dari 'category'
       createdAt: DateTime.parse(json['created_at'] ?? DateTime.now().toIso8601String()),
       updatedAt: DateTime.parse(json['updated_at'] ?? DateTime.now().toIso8601String()),
     );
@@ -48,9 +48,9 @@ class Barang {
       'barang_nama': barangNama,
       'barang_harga': barangHarga,
       'barang_kode': barangKode,
-      'jenisbarang_id': jenisbarangId,
-      'satuan_id': satuanId,
-      'barangcategory_id': barangcategoryId,
+      'jenisbarang_nama': jenisbarangNama,
+      'satuan_nama': satuanNama,
+      'barangcategory_nama': barangcategoryNama,
       if (barangGambar != null) 'barang_gambar': barangGambar,
     };
   }

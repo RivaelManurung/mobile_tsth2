@@ -27,17 +27,15 @@ class BarangController extends GetxController {
     try {
       isLoading(true);
       errorMessage('');
-      final response = await _service.getAllBarangWithGudangs();
-      barangList.assignAll(response.map((item) => Barang.fromJson(item)).toList());
+      // Ambil data barang terlebih dahulu
+      final barangData = await _service.getAllBarang();
+      barangList.assignAll(barangData);
+
+      // Ambil data BarangGudang dan kelompokkan berdasarkan barangId
+      final gudangData = await _service.getAllBarangWithGudangs();
       barangGudangs.assignAll({
-        for (var item in response)
-          item['id'] as int: (item['gudangs'] as List<dynamic>)
-              .map((g) => BarangGudang.fromJson({
-                    ...g,
-                    'barang_id': item['id'], // Tambahkan barang_id untuk BarangGudang
-                    'gudang_id': g['id'], // Pastikan gudang_id diambil dari gudang
-                  }))
-              .toList(),
+        for (var bg in gudangData)
+          bg.barangId: (barangGudangs[bg.barangId] ?? [])..add(bg),
       });
     } catch (e) {
       errorMessage(e.toString());
@@ -53,15 +51,13 @@ class BarangController extends GetxController {
     try {
       isLoading(true);
       errorMessage('');
-      final response = await _service.getBarangByIdWithGudangs(id);
-      selectedBarang(Barang.fromJson(response));
-      barangGudangs[id] = (response['gudangs'] as List<dynamic>)
-          .map((g) => BarangGudang.fromJson({
-                ...g,
-                'barang_id': id,
-                'gudang_id': g['id'],
-              }))
-          .toList();
+      // Ambil data barang spesifik
+      final barang = await _service.getBarangById(id);
+      selectedBarang(barang);
+
+      // Ambil data BarangGudang untuk barang spesifik
+      final gudang = await _service.getBarangByIdWithGudangs(id);
+      barangGudangs[id] = [gudang];
     } catch (e) {
       errorMessage(e.toString());
     } finally {

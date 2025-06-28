@@ -1,10 +1,8 @@
-// lib/screens/profile/profile_page.dart
-
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
-import 'package:google_fonts/google_fonts.dart'; // Import Google Fonts
+import 'package:google_fonts/google_fonts.dart';
 import 'package:inventory_tsth2/Model/user_model.dart';
 import 'package:inventory_tsth2/controller/profile_controller.dart';
 import 'package:inventory_tsth2/core/routes/routes_name.dart';
@@ -36,11 +34,9 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _initializeController() async {
     try {
-      // Pastikan controller diinisialisasi sebelum build
       _controller = ProfileController(userService: UserService());
       _userFuture = _controller.getCurrentUser();
 
-      // Handle error dalam FutureBuilder agar UI tetap bersih
       _userFuture!.catchError((error) {
         if (mounted) {
           setState(() {
@@ -81,8 +77,7 @@ class _ProfilePageState extends State<ProfilePage> {
       context: context,
       builder: (context) {
         return Dialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           child: Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
@@ -161,7 +156,6 @@ class _ProfilePageState extends State<ProfilePage> {
     try {
       await _controller.logout();
       Get.back(); // Close the loading dialog
-      // Navigasi ke halaman login dan hapus semua rute sebelumnya
       Navigator.pushNamedAndRemoveUntil(
           context, RoutesName.login, (route) => false);
     } catch (e) {
@@ -299,7 +293,7 @@ class _ProfilePageState extends State<ProfilePage> {
       floating: false,
       pinned: true,
       elevation: 0,
-      backgroundColor: Colors.transparent, // penting untuk efek blur
+      backgroundColor: Colors.transparent,
       flexibleSpace: FlexibleSpaceBar(
         collapseMode: CollapseMode.pin,
         background: Stack(
@@ -502,8 +496,7 @@ class _ProfilePageState extends State<ProfilePage> {
               color: primaryColor.withOpacity(0.1),
               borderRadius: BorderRadius.circular(10),
             ),
-            child:
-                Icon(icon, color: primaryColor, size: isSmallScreen ? 18 : 20),
+            child: Icon(icon, color: primaryColor, size: isSmallScreen ? 18 : 20),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -681,99 +674,117 @@ class _ProfilePageState extends State<ProfilePage> {
     final confirmPasswordController = TextEditingController();
 
     showDialog(
-        context: context,
-        builder: (context) {
-          return Dialog(
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: SingleChildScrollView(
-              // Tambahkan SingleChildScrollView
-              child: Container(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('Ubah Password',
-                        style: GoogleFonts.poppins(
-                            fontSize: 20, fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 24),
-                    _buildPasswordTextField(
-                        controller: oldPasswordController,
-                        label: 'Password Saat Ini'),
-                    const SizedBox(height: 16),
-                    _buildPasswordTextField(
-                        controller: newPasswordController,
-                        label: 'Password Baru'),
-                    const SizedBox(height: 16),
-                    _buildPasswordTextField(
-                        controller: confirmPasswordController,
-                        label: 'Konfirmasi Password Baru'),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: Text('Batal',
-                                style: GoogleFonts.poppins(
-                                    color: Colors.grey.shade700))),
-                        const SizedBox(width: 8),
-                        ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                                backgroundColor: primaryColor,
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12))),
-                            onPressed: () async {
-                              if (newPasswordController.text !=
-                                  confirmPasswordController.text) {
-                                Get.snackbar(
-                                    'Error', 'Password baru tidak cocok.',
-                                    backgroundColor: Colors.red,
-                                    colorText: Colors.white);
-                                return;
-                              }
-                              try {
-                                await _controller.changePassword(
-                                    currentPassword: oldPasswordController.text,
-                                    newPassword: newPasswordController.text);
-                                Navigator.pop(context);
-                                Get.snackbar(
-                                    'Sukses', 'Password berhasil diperbarui.',
-                                    backgroundColor: Colors.green,
-                                    colorText: Colors.white);
-                              } catch (e) {
-                                Get.snackbar('Error', e.toString(),
-                                    backgroundColor: Colors.red,
-                                    colorText: Colors.white);
-                              }
-                            },
-                            child: Text('Simpan',
-                                style:
-                                    GoogleFonts.poppins(color: Colors.white)))
-                      ],
-                    ),
-                  ],
-                ),
+      context: context,
+      builder: (context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: SingleChildScrollView(
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Ubah Password',
+                      style: GoogleFonts.poppins(
+                          fontSize: 20, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 24),
+                  _buildPasswordTextField(
+                      controller: oldPasswordController,
+                      label: 'Password Saat Ini'),
+                  const SizedBox(height: 16),
+                  _buildPasswordTextField(
+                      controller: newPasswordController,
+                      label: 'Password Baru'),
+                  const SizedBox(height: 16),
+                  _buildPasswordTextField(
+                      controller: confirmPasswordController,
+                      label: 'Konfirmasi Password Baru'),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: Text('Batal',
+                            style: GoogleFonts.poppins(
+                                color: Colors.grey.shade700)),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryColor,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: () async {
+                          // Client-side validation
+                          if (newPasswordController.text.length < 8) {
+                            Get.snackbar('Error', 'Password baru minimal 8 karakter.',
+                                backgroundColor: Colors.red, colorText: Colors.white);
+                            return;
+                          }
+                          if (newPasswordController.text !=
+                              confirmPasswordController.text) {
+                            Get.snackbar('Error', 'Password baru tidak cocok.',
+                                backgroundColor: Colors.red, colorText: Colors.white);
+                            return;
+                          }
+                          try {
+                            Get.dialog(
+                              const Center(child: CircularProgressIndicator()),
+                              barrierDismissible: false,
+                            );
+                            await _controller.changePassword(
+                              currentPassword: oldPasswordController.text,
+                              newPassword: newPasswordController.text,
+                            );
+                            Get.back(); // Close the loading dialog
+                            Navigator.pop(context);
+                            Get.snackbar('Sukses', 'Password berhasil diperbarui.',
+                                backgroundColor: Colors.green, colorText: Colors.white);
+                          } catch (e) {
+                            Get.back(); // Close the loading dialog
+                            String errorMessage = 'Validasi gagal atau kesalahan server.';
+                            if (e.toString().contains('current_password')) {
+                              errorMessage = 'Password saat ini salah.';
+                            } else if (e.toString().contains('new_password')) {
+                              errorMessage = 'Password baru harus minimal 8 karakter atau memenuhi aturan lainnya.';
+                            }
+                            Get.snackbar('Error', errorMessage,
+                                backgroundColor: Colors.red, colorText: Colors.white);
+                          }
+                        },
+                        child: Text('Simpan',
+                            style: GoogleFonts.poppins(color: Colors.white)),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-          ).animate().fadeIn().scale();
-        });
+          ),
+        ).animate().fadeIn().scale();
+      },
+    );
   }
 
-  Widget _buildPasswordTextField(
-      {required TextEditingController controller, required String label}) {
+  Widget _buildPasswordTextField({
+    required TextEditingController controller,
+    required String label,
+  }) {
     return TextFormField(
       controller: controller,
       obscureText: true,
-      style: GoogleFonts.poppins(
-          color: const Color(0xFF1A1D1F)), // GAYA FONT UNTUK INPUT
+      style: GoogleFonts.poppins(color: const Color(0xFF1A1D1F)),
       decoration: InputDecoration(
         labelText: label,
         labelStyle: GoogleFonts.poppins(color: Colors.grey.shade600),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: primaryColor, width: 2)),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: primaryColor, width: 2),
+        ),
         prefixIcon: Icon(Icons.lock_outline, color: primaryColor),
       ),
     );
