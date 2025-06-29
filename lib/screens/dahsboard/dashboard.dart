@@ -1,12 +1,11 @@
 import 'dart:ui';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:inventory_tsth2/controller/Auth/auth_controller.dart';
-import 'package:inventory_tsth2/controller/profile_controller.dart'; // Import ProfileController
+import 'package:inventory_tsth2/controller/profile_controller.dart';
 import 'package:inventory_tsth2/core/routes/routes_name.dart';
 import 'package:inventory_tsth2/screens/notifikasi/notifikasi_page.dart';
 import 'package:auto_size_text/auto_size_text.dart';
@@ -41,7 +40,7 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage>
     with WidgetsBindingObserver {
   final AuthController _authController = Get.find<AuthController>();
-  final ProfileController _profileController = Get.find<ProfileController>(); // Initialize ProfileController
+  final ProfileController _profileController = Get.find<ProfileController>();
 
   final Color primaryColor = const Color(0xFF4F46E5);
   final Color accentColor = const Color(0xFF34D399);
@@ -127,17 +126,6 @@ class _DashboardPageState extends State<DashboardPage>
 
   String _getFormattedTime() {
     return DateFormat('HH:mm').format(DateTime.now());
-  }
-
-  String _getInitials(String? name) {
-    if (name == null || name.isEmpty) return '';
-    final names = name.trim().split(' ');
-    if (names.length >= 2) {
-      return '${names[0][0]}${names[1][0]}'.toUpperCase();
-    } else if (names.isNotEmpty) {
-      return names[0][0].toUpperCase();
-    }
-    return '';
   }
 
   @override
@@ -374,7 +362,11 @@ class _DashboardPageState extends State<DashboardPage>
     return GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
-        Get.toNamed(RoutesName.profile);
+        Get.toNamed(RoutesName.profile)?.then((result) {
+          if (result == true) {
+            setState(() {}); // Force rebuild after profile update
+          }
+        });
       },
       child: Obx(() => Container(
             width: isSmallScreen ? 36 : 42,
@@ -392,51 +384,23 @@ class _DashboardPageState extends State<DashboardPage>
               ],
             ),
             child: ClipOval(
-              child: _authController.user.value?['avatar'] != null &&
-                      _authController.user.value!['avatar'].isNotEmpty
-                  ? CachedNetworkImage(
-                      imageUrl: _profileController.getPhotoUrl(
-                          _authController.user.value!['avatar']), // Use getPhotoUrl
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => const CircularProgressIndicator(),
-                      errorWidget: (context, url, error) {
-                        print('Dashboard avatar load error: $error, URL: $url');
-                        return _buildInitialsAvatar(
-                          _authController.user.value?['name'] ?? 'Guest',
-                          isSmallScreen,
-                        );
-                      },
-                      cacheKey:
-                          '${_authController.user.value!['avatar']}_${DateTime.now().millisecondsSinceEpoch}',
-                    )
-                  : _buildInitialsAvatar(
-                      _authController.user.value?['name'] ?? 'Guest',
-                      isSmallScreen,
-                    ),
+              child: Image.asset(
+                _profileController.getPhotoUrl(
+                    _authController.user.value?['avatar'] ?? ''),
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  print('Asset image load error: $error');
+                  return Image.asset(
+                    'assets/images/person.png',
+                    fit: BoxFit.cover,
+                  );
+                },
+              ),
             ),
           ))
           .animate()
           .fadeIn(delay: 400.ms)
           .scale(duration: 600.ms, curve: Curves.easeOutCubic),
-    );
-  }
-  Widget _buildInitialsAvatar(String name, bool isSmallScreen) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [primaryColor, const Color(0xFF4338CA)],
-        ),
-      ),
-      child: Center(
-        child: Text(
-          _getInitials(name),
-          style: GoogleFonts.poppins(
-            color: Colors.white,
-            fontSize: isSmallScreen ? 14 : 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
     );
   }
 
@@ -503,7 +467,9 @@ class _DashboardPageState extends State<DashboardPage>
     final int crossAxisCount = isLargeScreen ? 4 : (isMediumScreen ? 3 : 2);
     final screenWidth = MediaQuery.of(context).size.width;
 
-    final double cardWidth = (screenWidth - (horizontalPadding * 2) - (spacing * (crossAxisCount - 1))) / crossAxisCount;
+    final double cardWidth =
+        (screenWidth - (horizontalPadding * 2) - (spacing * (crossAxisCount - 1))) /
+            crossAxisCount;
 
     return SliverToBoxAdapter(
       child: Padding(

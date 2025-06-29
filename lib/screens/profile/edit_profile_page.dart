@@ -104,9 +104,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
       if (mounted) {
         setState(() {
           _currentUser = updatedUser;
+          // Refresh controllers with new user data
           _controller.nameController.text = _currentUser.name;
           _controller.emailController.text = _currentUser.email;
           _controller.phoneController.text = _currentUser.phoneNumber ?? '';
+          _controller.addressController.text = _currentUser.address ?? '';
           _selectedImage = null;
         });
         _authController.updateUser(updatedUser);
@@ -126,7 +128,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
-        Navigator.pop(context, true);
+        // Consider not popping to allow further edits
+        // Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {
@@ -150,60 +153,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
-  Future<void> _deleteAvatar() async {
-    setState(() {
-      _isUpdatingAvatar = true;
-    });
-
-    try {
-      final updatedUser = await _controller.deleteAvatar();
-      if (mounted) {
-        setState(() {
-          _currentUser = updatedUser;
-          _controller.nameController.text = _currentUser.name;
-          _controller.emailController.text = _currentUser.email;
-          _controller.phoneController.text = _currentUser.phoneNumber ?? '';
-        });
-        _authController.updateUser(updatedUser);
-        if (_currentUser.photoUrl != null &&
-            _currentUser.photoUrl!.isNotEmpty) {
-          final avatarUrl = _controller.getPhotoUrl(_currentUser.photoUrl!);
-          print('Clearing cache for: $avatarUrl');
-          await CachedNetworkImage.evictFromCache(avatarUrl);
-        }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content:
-                Text('Avatar berhasil dihapus', style: GoogleFonts.poppins()),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
-        Navigator.pop(context, true);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal menghapus avatar: $e',
-                style: GoogleFonts.poppins()),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isUpdatingAvatar = false;
-        });
-      }
-    }
-  }
+  // --- METHOD _deleteAvatar() DIHAPUS DARI SINI ---
 
   Future<void> _saveProfile() async {
     if (!_controller.formKey.currentState!.validate()) {
@@ -280,7 +230,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0.5,
-        iconTheme: IconThemeData(color: primaryColor),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: primaryColor),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         title: Text(
           'Edit Profil',
           style: GoogleFonts.poppins(
@@ -288,6 +241,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
             fontWeight: FontWeight.w600,
           ),
         ),
+        centerTitle: true,
         actions: [
           _isSaving
               ? const Padding(
@@ -302,7 +256,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 )
               : IconButton(
                   icon: Icon(
-                    Icons.check_circle_outline,
+                    Icons.check,
                     color: primaryColor,
                     size: 28,
                   ),
@@ -329,59 +283,59 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   Widget _buildAvatarSection() {
-    return Stack(
-      alignment: Alignment.bottomRight,
+    return Column(
       children: [
-        Hero(
-          tag: 'profile-avatar',
-          child: Container(
-            width: 130,
-            height: 130,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border:
-                  Border.all(color: primaryColor.withOpacity(0.5), width: 4),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+        Stack(
+          alignment: Alignment.bottomRight,
+          children: [
+            Hero(
+              tag: 'profile-avatar',
+              child: Container(
+                width: 130,
+                height: 130,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border:
+                      Border.all(color: primaryColor.withOpacity(0.5), width: 4),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            child: ClipOval(
-              child: _selectedImage != null
-                  ? Image.file(
-                      _selectedImage!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        print('Image.file error: $error');
-                        return _buildInitialsAvatar();
-                      },
-                    )
-                  : (_currentUser.photoUrl != null &&
-                          _currentUser.photoUrl!.isNotEmpty
-                      ? CachedNetworkImage(
-                          imageUrl:
-                              _controller.getPhotoUrl(_currentUser.photoUrl!),
+                child: ClipOval(
+                  child: _selectedImage != null
+                      ? Image.file(
+                          _selectedImage!,
                           fit: BoxFit.cover,
-                          placeholder: (context, url) =>
-                              const CircularProgressIndicator(),
-                          errorWidget: (context, url, error) {
-                            print(
-                                'EditProfile avatar load error: $error, URL: $url');
+                          errorBuilder: (context, error, stackTrace) {
+                            print('Image.file error: $error');
                             return _buildInitialsAvatar();
                           },
-                          cacheKey:
-                              '${_currentUser.photoUrl}_${_currentUser.id}',
                         )
-                      : _buildInitialsAvatar()),
+                      : (_currentUser.photoUrl != null &&
+                              _currentUser.photoUrl!.isNotEmpty
+                          ? CachedNetworkImage(
+                              imageUrl:
+                                  _controller.getPhotoUrl(_currentUser.photoUrl!),
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) =>
+                                  const CircularProgressIndicator(),
+                              errorWidget: (context, url, error) {
+                                print(
+                                    'EditProfile avatar load error: $error, URL: $url');
+                                return _buildInitialsAvatar();
+                              },
+                              cacheKey:
+                                  '${_currentUser.photoUrl}_${DateTime.now().millisecondsSinceEpoch}', // Use timestamp to force refresh
+                            )
+                          : _buildInitialsAvatar()),
+                ),
+              ),
             ),
-          ),
-        ),
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+            // Camera Edit Icon
             GestureDetector(
               onTap: _isUpdatingAvatar ? null : _pickImage,
               child: Container(
@@ -410,35 +364,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       ),
               ),
             ),
-            if (_currentUser.photoUrl != null &&
-                _currentUser.photoUrl!.isNotEmpty)
-              const SizedBox(height: 8),
-            if (_currentUser.photoUrl != null &&
-                _currentUser.photoUrl!.isNotEmpty)
-              GestureDetector(
-                onTap: _isUpdatingAvatar ? null : _deleteAvatar,
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black26,
-                        blurRadius: 5,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Icon(
-                    Icons.delete,
-                    color: Colors.red,
-                    size: 24,
-                  ),
-                ),
-              ),
           ],
         ),
+        // -- BAGIAN TOMBOL HAPUS FOTO DIHILANGKAN DARI SINI --
       ],
     );
   }
@@ -483,6 +411,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
               keyboardType: TextInputType.phone,
               validator: _controller.validatePhone,
             ),
+            const SizedBox(height: 16),
+            _buildTextField(
+              controller: _controller.addressController,
+              label: 'Alamat (Opsional)',
+              icon: Icons.location_on_outlined,
+              keyboardType: TextInputType.streetAddress,
+              maxLines: 3,
+              validator: _controller.validateAddress,
+            ),
           ],
         ),
       ),
@@ -503,20 +440,25 @@ class _EditProfilePageState extends State<EditProfilePage> {
       maxLines: maxLines,
       style: GoogleFonts.poppins(color: const Color(0xFF1A1D1F)),
       decoration: InputDecoration(
-        labelText: label,
-        labelStyle: GoogleFonts.poppins(color: Colors.grey.shade600),
-        prefixIcon: Icon(icon, color: primaryColor),
-        filled: true,
-        fillColor: backgroundColor,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: primaryColor, width: 2),
-        ),
-      ),
+          labelText: label,
+          labelStyle: GoogleFonts.poppins(color: Colors.grey.shade600),
+          prefixIcon: Padding(
+            padding: const EdgeInsets.only(left: 12, right: 8.0),
+            child: Icon(icon, color: primaryColor),
+          ),
+          alignLabelWithHint: true, // For multiline text fields
+          filled: true,
+          fillColor: backgroundColor,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: primaryColor, width: 2),
+          ),
+          contentPadding:
+              const EdgeInsets.symmetric(vertical: 16, horizontal: 12)),
       validator: validator,
     );
   }
@@ -561,6 +503,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [primaryColor, const Color(0xFF4338CA)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
       ),
       child: Center(

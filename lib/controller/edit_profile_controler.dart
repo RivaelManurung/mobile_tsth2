@@ -3,8 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:inventory_tsth2/Model/user_model.dart';
-import 'package:inventory_tsth2/config/api.dart';
-import 'package:inventory_tsth2/services/user_services.dart';
+import 'package:inventory_tsth2/config/api.dart'; // Pastikan path ini benar
+import 'package:inventory_tsth2/services/user_services.dart'; // Pastikan path ini benar
 
 class EditProfileController extends GetxController {
   final UserService _userService;
@@ -12,7 +12,7 @@ class EditProfileController extends GetxController {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
-  final TextEditingController addressController = TextEditingController();
+  final TextEditingController addressController = TextEditingController(); // Sudah ada
   String? _originalEmail;
 
   EditProfileController({
@@ -22,14 +22,14 @@ class EditProfileController extends GetxController {
     nameController.text = user.name;
     emailController.text = user.email;
     phoneController.text = user.phoneNumber ?? '';
-    addressController.text = user.address ?? '';
+    addressController.text = user.address ?? ''; // Sudah ada
     _originalEmail = user.email;
   }
 
   String getPhotoUrl(String? photoUrl) {
     if (photoUrl == null || photoUrl.isEmpty) return '';
     if (photoUrl.startsWith('http')) return photoUrl;
-    return '$baseUrl/storage/$photoUrl';
+    return '$baseUrl/storage/$photoUrl'; // Pastikan baseUrl terdefinisi
   }
 
   Future<Map<String, dynamic>> saveProfile(User user) async {
@@ -38,39 +38,17 @@ class EditProfileController extends GetxController {
       throw Exception('Form validation failed');
     }
 
-    // Print input values for debugging
-    print('--- Profile Input Values ---');
-    print('Name: ${nameController.text}');
-    print('Email: ${emailController.text}');
-    print(
-        'Phone: ${phoneController.text.isEmpty ? "Not provided" : phoneController.text}');
-    print(
-        'Address: ${addressController.text.isEmpty ? "Not provided" : addressController.text}');
-    print('User ID: ${user.id}');
-    print('Photo URL: ${user.photoUrl ?? "Not provided"}');
-    print('---------------------------');
-
-    // Clean and validate phone input
-    String? phoneInput;
-    if (phoneController.text.isNotEmpty) {
-      phoneInput = phoneController.text.trim();
-
-      // Validate phone length
-      final digitsOnly = phoneInput.replaceAll(RegExp(r'\D'), '');
-      if (digitsOnly.length > 15) {
-        print('Error: Phone number exceeds 15 digits: $phoneInput');
-        throw Exception('Phone number exceeds 15 characters');
-      }
-    }
-
-    // Create the updated user object for non-email fields
+    // Membersihkan input
+    final String nameInput = nameController.text.trim();
+    final String? phoneInput = phoneController.text.trim().isEmpty ? null : phoneController.text.trim();
+    final String? addressInput = addressController.text.trim().isEmpty ? null : addressController.text.trim();
+    
     final updatedUser = User(
       id: user.id,
-      name: nameController.text.trim(),
-      email: _originalEmail!, // Keep original email for updateUser
+      name: nameInput,
+      email: _originalEmail!, // Gunakan email asli untuk update user
       phoneNumber: phoneInput,
-      address:
-          addressController.text.isEmpty ? null : addressController.text.trim(),
+      address: addressInput,
       photoUrl: user.photoUrl,
       roles: user.roles,
       createdAt: user.createdAt,
@@ -78,31 +56,16 @@ class EditProfileController extends GetxController {
 
     try {
       String? emailUpdateMessage;
-      // Handle email update separately if changed
+      // Handle update email secara terpisah jika berubah
       if (emailController.text.trim() != _originalEmail) {
         emailUpdateMessage = await _userService.updateEmail(
           emailController.text.trim(),
         );
       }
 
-      // Log the payload
-      print('--- Sending User Payload (non-email) ---');
-      print(jsonEncode(updatedUser.toJson()));
-      print('---------------------------');
-
-      // Update non-email fields
+      // Update field non-email
       final savedUser = await _userService.updateUser(user.id, updatedUser);
 
-      // Validate returned phone number
-      if (phoneInput != null && savedUser.phoneNumber != phoneInput) {
-        print(
-            'Warning: Returned phone number (${savedUser.phoneNumber}) does not match input ($phoneInput)');
-        throw Exception(
-            'Phone number update failed: server returned ${savedUser.phoneNumber} instead of $phoneInput');
-      }
-
-      print('Saved user phoneNumber: ${savedUser.phoneNumber}');
-      print('Saved user photoUrl: ${savedUser.photoUrl}');
       return {
         'user': savedUser,
         'emailMessage': emailUpdateMessage,
@@ -117,9 +80,7 @@ class EditProfileController extends GetxController {
     try {
       final bytes = await image.readAsBytes();
       final base64Image = base64Encode(bytes);
-      print('Generated Base64: $base64Image');
       final updatedUser = await _userService.updateAvatar(base64Image);
-      print('Updated avatar photoUrl: ${updatedUser.photoUrl}');
       return updatedUser;
     } catch (e) {
       print('Error updating avatar: $e');
@@ -130,7 +91,6 @@ class EditProfileController extends GetxController {
   Future<User> deleteAvatar() async {
     try {
       final updatedUser = await _userService.deleteAvatar();
-      print('Deleted avatar photoUrl: ${updatedUser.photoUrl}');
       return updatedUser;
     } catch (e) {
       print('Error deleting avatar: $e');
@@ -139,64 +99,39 @@ class EditProfileController extends GetxController {
   }
 
   String? validateName(String? value) {
-    if (value == null || value.trim().isEmpty) return 'Please enter your name';
-    if (value.trim().length > 255) return 'Name must not exceed 255 characters';
+    if (value == null || value.trim().isEmpty) return 'Nama tidak boleh kosong';
+    if (value.trim().length > 255) return 'Nama maksimal 255 karakter';
     return null;
   }
 
   String? validateEmail(String? value) {
-    if (value == null || value.trim().isEmpty) return 'Please enter your email';
-    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value.trim())) {
-      return 'Please enter a valid email';
+    if (value == null || value.trim().isEmpty) return 'Email tidak boleh kosong';
+    if (!GetUtils.isEmail(value.trim())) {
+      return 'Format email tidak valid';
     }
     return null;
   }
 
   String? validatePhone(String? value) {
-    print('Input phone number: $value');
-    if (value != null && value.trim().isNotEmpty) {
-      value = value.trim();
-      print('Phone length: ${value.length}');
+    if (value == null || value.trim().isEmpty) return null; // Telepon opsional
 
-      // Remove any non-digit characters for validation
-      final digitsOnly = value.replaceAll(RegExp(r'\D'), '');
-      print('Digits only: $digitsOnly');
-      print('Digits length: ${digitsOnly.length}');
-
-      // Validate length (10-15 digits)
-      if (digitsOnly.length < 10 || digitsOnly.length > 15) {
-        print('Validation error: Phone number must be 10-15 digits');
-        return 'Phone number must be 10-15 digits';
-      }
-
-      // For Indonesian numbers, allow formats like:
-      // 08xxxxxxxxxx (starts with 08)
-      // 62xxxxxxxxxx (starts with 62)
-      // +62xxxxxxxxx (starts with +62)
-      if (value.startsWith('+')) {
-        // Remove + and validate
-        final withoutPlus = value.substring(1);
-        if (!RegExp(r'^\d+$').hasMatch(withoutPlus)) {
-          print('Validation error: Invalid characters in phone number');
-          return 'Please enter a valid phone number';
-        }
-      } else {
-        // Must be all digits
-        if (!RegExp(r'^\d+$').hasMatch(value)) {
-          print('Validation error: Please enter digits only');
-          return 'Please enter a valid phone number (digits only)';
-        }
-      }
+    final digitsOnly = value.replaceAll(RegExp(r'\D'), '');
+    if (digitsOnly.length < 10 || digitsOnly.length > 15) {
+      return 'Nomor telepon harus 10-15 digit';
     }
-    print('Phone validation passed');
+    if (!GetUtils.isPhoneNumber(value)) {
+        // GetUtils.isPhoneNumber is quite basic, so a custom regex might be better
+        // but it's a good starting point.
+        return 'Format nomor telepon tidak valid';
+    }
     return null;
   }
 
   String? validateAddress(String? value) {
-    if (value != null && value.trim().isNotEmpty && value.trim().length > 500) {
-      return 'Address must not exceed 500 characters';
+    if (value != null && value.trim().length > 500) {
+      return 'Alamat maksimal 500 karakter';
     }
-    return null;
+    return null; // Alamat opsional
   }
 
   @override
