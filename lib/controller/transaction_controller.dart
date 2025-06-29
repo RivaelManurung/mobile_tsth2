@@ -8,12 +8,15 @@ import 'package:inventory_tsth2/services/barang_service.dart';
 import 'package:inventory_tsth2/services/transaction_service.dart';
 import 'package:inventory_tsth2/services/transaction_type_service.dart';
 import 'package:inventory_tsth2/core/routes/routes_name.dart';
-import 'package:barcode_scan2/barcode_scan2.dart';
+import 'package:inventory_tsth2/widget/qr_scanner_page.dart';
+import 'package:qr_code_scanner_plus/qr_code_scanner_plus.dart';
 import 'package:inventory_tsth2/widget/date_utils.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:convert';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart' as secure_storage;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart'
+    as secure_storage;
 import 'package:intl/intl.dart';
+import 'package:rxdart/rxdart.dart' as rxdart;
 
 class TransactionController extends GetxService {
   final TransactionService _transactionService;
@@ -22,7 +25,8 @@ class TransactionController extends GetxService {
   final secure_storage.FlutterSecureStorage _storage;
 
   // Reactive state variables
-  final RxList<Map<String, dynamic>> searchResults = <Map<String, dynamic>>[].obs;
+  final RxList<Map<String, dynamic>> searchResults =
+      <Map<String, dynamic>>[].obs;
   final RxList<Transaction> transactionList = <Transaction>[].obs;
   final RxList<Transaction> filteredTransactionList = <Transaction>[].obs;
   final Rx<Transaction?> selectedTransaction = Rx<Transaction?>(null);
@@ -34,9 +38,11 @@ class TransactionController extends GetxService {
   final RxList<BarangGudang> barangGudangs = <BarangGudang>[].obs;
   final RxString scannedBarcode = ''.obs;
   final RxInt selectedTransactionTypeId = 0.obs;
-  final RxList<Map<String, dynamic>> scannedItems = <Map<String, dynamic>>[].obs;
+  final RxList<Map<String, dynamic>> scannedItems =
+      <Map<String, dynamic>>[].obs;
   final RxBool isScanningAllowed = true.obs;
-  final TextEditingController quantityController = TextEditingController(text: '1');
+  final TextEditingController quantityController =
+      TextEditingController(text: '1');
   final RxString userRole = ''.obs;
   final RxString selectedDateRange = 'Semua'.obs;
   final FocusNode searchFocusNode = FocusNode();
@@ -46,22 +52,35 @@ class TransactionController extends GetxService {
   final TextEditingController dateStartController = TextEditingController();
   final TextEditingController dateEndController = TextEditingController();
 
+  // Debounce stream for search
+  final _searchSubject = rxdart.BehaviorSubject<String>();
+
   TransactionController({
     TransactionService? transactionService,
     TransactionTypeService? transactionTypeService,
     BarangService? barangService,
     secure_storage.FlutterSecureStorage? storage,
   })  : _transactionService = transactionService ?? TransactionService(),
-        _transactionTypeService = transactionTypeService ?? TransactionTypeService(),
+        _transactionTypeService =
+            transactionTypeService ?? TransactionTypeService(),
         _barangService = barangService ?? BarangService(),
-        _storage = storage ?? const secure_storage.FlutterSecureStorage();
+        _storage = storage ?? const secure_storage.FlutterSecureStorage() {
+    // Set up debounced search
+    _searchSubject
+        .debounceTime(const Duration(milliseconds: 500))
+        .listen((query) {
+      print('Debounced search query: $query');
+      searchQuery.value = query;
+      searchItems(query);
+    });
+  }
 
   @override
   void onInit() {
     super.onInit();
     _setupSearchListener();
     loadUserData();
-    fetchAllTransactions(); // Fetch all transactions without date filter
+    fetchAllTransactions();
     fetchTransactionTypes();
     fetchBarangs();
     fetchBarangGudangs();
@@ -84,13 +103,8 @@ class TransactionController extends GetxService {
 
   void _setupSearchListener() {
     searchController.addListener(() {
-      if (searchQuery.value != searchController.text) {
-        searchQuery.value = searchController.text;
-      }
+      _searchSubject.add(searchController.text);
     });
-
-    debounce(searchQuery, (_) => searchItems(searchQuery.value),
-        time: const Duration(milliseconds: 500));
   }
 
   @override
@@ -100,6 +114,7 @@ class TransactionController extends GetxService {
     dateStartController.dispose();
     dateEndController.dispose();
     searchFocusNode.dispose();
+    _searchSubject.close();
     super.onClose();
   }
 
@@ -126,14 +141,17 @@ class TransactionController extends GetxService {
           'date_end': formatter.format(now),
         };
       case 'Custom':
-        if (dateStartController.text.isEmpty || dateEndController.text.isEmpty) {
-          print('Warning: Custom date range selected but one or both dates are empty');
+        if (dateStartController.text.isEmpty ||
+            dateEndController.text.isEmpty) {
+          print(
+              'Warning: Custom date range selected but one or both dates are empty');
           return {'date_start': null, 'date_end': null};
         }
         try {
           final startDate = DateTime.parse(dateStartController.text);
           final endDate = DateTime.parse(dateEndController.text);
-          print('Parsed custom dates: start=${formatter.format(startDate)}, end=${formatter.format(endDate)}');
+          print(
+              'Parsed custom dates: start=${formatter.format(startDate)}, end=${formatter.format(endDate)}');
           return {
             'date_start': formatter.format(startDate),
             'date_end': formatter.format(endDate),
@@ -166,12 +184,14 @@ class TransactionController extends GetxService {
         final userData = jsonDecode(userDataString);
         userRole.value = (userData['roles'] as List<dynamic>?)?.first ?? 'user';
       } else {
-        print('No userData found in FlutterSecureStorage, redirecting to login');
+        print(
+            'No userData found in FlutterSecureStorage, redirecting to login');
         userRole.value = 'user';
         Get.offAllNamed(RoutesName.login);
       }
-    } catch (e) {
-      print('Gagal memuat data pengguna: $e');
+    } catch (e, stackTrace) {
+      print('Error loading user data: $e');
+      print(stackTrace);
       userRole.value = 'user';
       Get.offAllNamed(RoutesName.login);
     }
@@ -183,8 +203,9 @@ class TransactionController extends GetxService {
       print('Saving userData to FlutterSecureStorage: $data');
       await _storage.write(key: 'user', value: jsonEncode(data));
       userRole.value = (data['roles'] as List<dynamic>?)?.first ?? 'user';
-    } catch (e) {
-      print('Gagal menyimpan data pengguna: $e');
+    } catch (e, stackTrace) {
+      print('Error saving user data: $e');
+      print(stackTrace);
     }
   }
 
@@ -243,10 +264,14 @@ class TransactionController extends GetxService {
     try {
       isLoading(true);
       errorMessage('');
+      print('Fetching transaction types...');
       final types = await _transactionTypeService.getAllTransactionType();
+      print('Fetched transaction types: ${types.map((t) => t.name).toList()}');
       transactionTypes.assignAll(types);
       printTransactionTypes();
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('Error in fetchTransactionTypes: $e');
+      print(stackTrace);
       errorMessage('Gagal memuat tipe transaksi: $e');
       showErrorSnackbar('Error', errorMessage.value);
       if (errorMessage.value.contains('No token found')) {
@@ -263,9 +288,13 @@ class TransactionController extends GetxService {
     try {
       isLoading(true);
       errorMessage('');
+      print('Fetching barangs...');
       final items = await _barangService.getAllBarang();
+      print('Fetched barangs: ${items.map((b) => b.barangNama).toList()}');
       barangs.assignAll(items);
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('Error in fetchBarangs: $e');
+      print(stackTrace);
       errorMessage('Gagal memuat barang: $e');
       showErrorSnackbar('Error', errorMessage.value);
       if (errorMessage.value.contains('No token found')) {
@@ -282,14 +311,21 @@ class TransactionController extends GetxService {
     try {
       isLoading(true);
       errorMessage('');
+      print('Fetching barang gudangs...');
       final items = await _barangService.getAllBarangWithGudangs();
       print('Raw data from getAllBarangWithGudangs: $items');
       final barangGudangList = items is List<BarangGudang>
           ? items
-          : items.map((item) => BarangGudang.fromJson(item as Map<String, dynamic>)).toList();
-      print('Parsed BarangGudang list: ${barangGudangList.map((bg) => bg.toJson()).toList()}');
+          : items
+              .map(
+                  (item) => BarangGudang.fromJson(item as Map<String, dynamic>))
+              .toList();
+      print(
+          'Parsed BarangGudang list: ${barangGudangList.map((bg) => bg.toJson()).toList()}');
       barangGudangs.assignAll(barangGudangList);
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('Error in fetchBarangGudangs: $e');
+      print(stackTrace);
       errorMessage('Gagal memuat data barang gudang: $e');
       showErrorSnackbar('Error', errorMessage.value);
       if (errorMessage.value.contains('No token found')) {
@@ -309,14 +345,18 @@ class TransactionController extends GetxService {
     try {
       isLoading(true);
       errorMessage('');
+      print('Fetching all transactions...');
       final transactions = await _transactionService.getAllTransactions(
         transactionTypeId: transactionTypeId,
         transactionCode: transactionCode,
-        // Remove dateStart and dateEnd parameters
       );
+      print(
+          'Fetched transactions: ${transactions.map((t) => t.transactionCode).toList()}');
       transactionList.assignAll(transactions);
-      applyClientSideFilter(); // Apply client-side filter after fetching
-    } catch (e) {
+      applyClientSideFilter();
+    } catch (e, stackTrace) {
+      print('Error in fetchAllTransactions: $e');
+      print(stackTrace);
       errorMessage('Gagal memuat transaksi: $e');
       showErrorSnackbar('Error', errorMessage.value);
       if (errorMessage.value.contains('No token found')) {
@@ -329,56 +369,101 @@ class TransactionController extends GetxService {
     }
   }
 
+void searchItems(String query) {
+    print('Initiating client-side search for query: "$query"');
+    if (query.isEmpty) {
+      searchResults.clear();
+      print('Search query is empty, cleared search results.');
+      return;
+    }
+
+    final lowerQuery = query.toLowerCase();
+    // Filter the all-encompassing 'barangs' list
+    final results = barangs
+        .where((barang) =>
+            (barang.barangNama?.toLowerCase().contains(lowerQuery) ?? false) ||
+            (barang.barangKode?.toLowerCase().contains(lowerQuery) ?? false))
+        .map((barang) {
+      // Find the corresponding BarangGudang to get stock and warehouse info
+      final barangGudang = barangGudangs.firstWhere(
+        (bg) => bg.barangId == barang.id,
+        orElse: () {
+          print('Warning: No BarangGudang found for barang ID ${barang.id}. Assigning default values.');
+          return BarangGudang(
+            barangId: barang.id,
+            gudangId: 0,
+            stokTersedia: 0,
+            stokDipinjam: 0,
+            stokMaintenance: 0,
+            // You might need to adjust default values or handle nulls in your UI if this happens
+          );
+        },
+      );
+      return {
+        'barang_id': barang.id, // Include barang_id for better identification if needed
+        'barang_kode': barang.barangKode,
+        'barang_nama': barang.barangNama,
+        'stok_tersedia': barangGudang.stokTersedia,
+        'gudang_name': barangGudang.gudang?.name ?? 'Tidak Diketahui',
+        'satuan': barang.satuanNama ?? 'Unit',
+      };
+    }).toList();
+
+    searchResults.assignAll(results);
+    print('Client-side search found ${searchResults.length} results.');
+    print('Search results: ${searchResults.map((r) => r['barang_nama'])}');
+  }
+
+  /// Initiates a barcode scan using the QR scanner page.
   Future<void> scanBarcode() async {
-    if (!isScanningAllowed.value) return;
+    if (!isScanningAllowed.value) {
+      showInfoSnackbar('Info', 'Pemindaian sedang berlangsung atau tidak diizinkan sementara.');
+      return;
+    }
 
     try {
+      isLoading(true);
+      errorMessage('');
+      isScanningAllowed(false); // Prevent multiple scans at once
+
       var cameraStatus = await Permission.camera.status;
       if (!cameraStatus.isGranted) {
         cameraStatus = await Permission.camera.request();
         if (!cameraStatus.isGranted) {
-          errorMessage('Izin kamera ditolak');
+          errorMessage('Izin kamera ditolak. Tidak dapat memindai barcode.');
           showErrorSnackbar('Error', errorMessage.value);
           return;
         }
       }
 
-      isLoading(true);
-      errorMessage('');
-      isScanningAllowed(false);
-
-      var result = await BarcodeScanner.scan(
-        options: const ScanOptions(
-          restrictFormat: [BarcodeFormat.qr, BarcodeFormat.code128, BarcodeFormat.ean13],
-          useCamera: -1,
-          autoEnableFlash: false,
-          android: AndroidOptions(useAutoFocus: true),
-        ),
+      print('Opening QR scanner...');
+      final result = await Get.to<String>(
+        () => const QRScannerPage(),
+        transition: Transition.rightToLeft,
+        duration: const Duration(milliseconds: 300),
       );
 
-      if (result.rawContent.isNotEmpty) {
-        scannedBarcode.value = result.rawContent;
-        await _checkBarcode(result.rawContent);
+      print('QR scanner result: $result');
+      if (result != null && result.isNotEmpty) {
+        scannedBarcode.value = result;
+        searchController.text = result; // Update the search field with scanned barcode
+        await _checkBarcode(result); // Proceed to check barcode details
       } else {
-        errorMessage('Pemindaian dibatalkan atau gagal');
+        errorMessage('Pemindaian dibatalkan atau tidak ada hasil.');
         showInfoSnackbar('Info', errorMessage.value);
       }
-    } catch (e) {
-      errorMessage('Gagal memindai barcode: $e');
-      showErrorSnackbar('Error', errorMessage.value);
-      if (errorMessage.value.contains('No token found')) {
-        await _storage.delete(key: 'auth_token');
-        await _storage.delete(key: 'user');
-        Get.offAllNamed(RoutesName.login);
-      }
+    } catch (e, stackTrace) {
+      _handleAPIError(e, stackTrace, 'Gagal memindai barcode');
     } finally {
       isLoading(false);
+      // Re-enable scanning after a short delay to prevent rapid re-scans
       Future.delayed(const Duration(milliseconds: 1500), () {
         isScanningAllowed(true);
       });
     }
   }
 
+  /// Checks a given barcode (either scanned or manually entered) against the API.
   Future<void> checkManualBarcode(String code) async {
     if (code.isEmpty) {
       showErrorSnackbar('Error', 'Masukkan kode barcode terlebih dahulu');
@@ -387,16 +472,29 @@ class TransactionController extends GetxService {
     await _checkBarcode(code);
   }
 
+  /// Internal helper to check barcode details from API and show dialog.
   Future<void> _checkBarcode(String code) async {
     try {
       isLoading(true);
-      final item = await _transactionService.checkBarcode(code);
+      print('Checking barcode with API: $code');
+      final item = await _transactionService.checkBarcode(code); // This uses your API
+      print('Barcode API check result: $item');
+
+      if (item == null || item['barang_kode'] == null) {
+        showErrorSnackbar(
+            'Error', 'Data barcode tidak valid atau barang tidak ditemukan di sistem.');
+        return;
+      }
+
+      // Reset quantity controller for the dialog
+      quantityController.text = '1';
 
       Get.defaultDialog(
         title: 'Item Ditemukan',
         content: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(item['barang_nama'] ?? 'Item Tidak Diketahui'),
+            Text(item['barang_nama'] ?? 'Item Tidak Diketahui', style: const TextStyle(fontWeight: FontWeight.bold)),
             Text('Kode: ${item['barang_kode'] ?? 'Tidak Diketahui'}'),
             Text('Stok Tersedia: ${item['stok_tersedia'] ?? 0}'),
             Text('Gudang: ${item['gudang_name'] ?? 'Tidak Diketahui'}'),
@@ -408,46 +506,57 @@ class TransactionController extends GetxService {
                 labelText: 'Jumlah (${item['satuan'] ?? 'Unit'})',
                 border: const OutlineInputBorder(),
               ),
+              onFieldSubmitted: (value) {
+                // Handle submission from keyboard "Done" button
+                _validateAndAddScannedItem(item, quantityController.text);
+                Get.back(); // Close dialog after processing
+              },
             ),
           ],
         ),
         cancel: TextButton(
-          onPressed: () => Get.back(),
+          onPressed: () {
+            Get.back();
+          },
           child: const Text('Batal'),
         ),
         confirm: ElevatedButton(
           onPressed: () {
-            final quantity = int.tryParse(quantityController.text) ?? 1;
-            if (quantity <= 0) {
-              showErrorSnackbar('Error', 'Jumlah harus lebih dari 0');
-              return;
-            }
-            final transactionType = transactionTypes.firstWhereOrNull(
-                (type) => type.id == selectedTransactionTypeId.value);
-            if (transactionType?.name?.toLowerCase() != 'barang masuk' &&
-                quantity > (item['stok_tersedia'] ?? 0)) {
-              showErrorSnackbar('Error', 'Jumlah melebihi stok tersedia');
-              return;
-            }
-            _addScannedItem(item, quantity);
-            Get.back();
+            _validateAndAddScannedItem(item, quantityController.text);
+            Get.back(); // Close dialog after processing
           },
           child: const Text('Tambah'),
         ),
       );
-    } catch (e) {
-      errorMessage('Gagal memverifikasi barcode: $e');
-      showErrorSnackbar('Error', errorMessage.value);
-      if (errorMessage.value.contains('No token found')) {
-        await _storage.delete(key: 'auth_token');
-        await _storage.delete(key: 'user');
-        Get.offAllNamed(RoutesName.login);
-      }
+    } catch (e, stackTrace) {
+      _handleAPIError(e, stackTrace, 'Gagal memverifikasi barcode');
     } finally {
       isLoading(false);
     }
   }
 
+  /// Validates quantity and adds the item to `scannedItems`.
+  void _validateAndAddScannedItem(Map<String, dynamic> item, String quantityText) {
+    final quantity = int.tryParse(quantityText) ?? 1;
+    if (quantity <= 0) {
+      showErrorSnackbar('Error', 'Jumlah harus lebih dari 0');
+      return;
+    }
+
+    final transactionType = transactionTypes.firstWhereOrNull(
+        (type) => type.id == selectedTransactionTypeId.value);
+
+    // If it's not "Barang Masuk" (stock-in), check against available stock
+    if (transactionType?.name?.toLowerCase() != 'barang masuk' &&
+        quantity > (item['stok_tersedia'] ?? 0)) {
+      showErrorSnackbar('Error', 'Jumlah melebihi stok tersedia');
+      return;
+    }
+    _addScannedItem(item, quantity);
+  }
+
+
+  /// Adds an item to the `scannedItems` list, updating quantity if item exists.
   void _addScannedItem(Map<String, dynamic> item, int quantity) {
     if (item['barang_kode'] == null || item['barang_kode'].isEmpty) {
       showErrorSnackbar('Error', 'Data barcode tidak valid');
@@ -459,9 +568,12 @@ class TransactionController extends GetxService {
     );
 
     if (existingIndex >= 0) {
+      // If item already exists, just update its quantity
       scannedItems[existingIndex]['quantity'] += quantity;
     } else {
+      // Add new item
       scannedItems.add({
+        'barang_id': item['barang_id'], // Include barang_id for clearer item tracking
         'barang_kode': item['barang_kode'],
         'barang_nama': item['barang_nama'],
         'quantity': quantity,
@@ -470,24 +582,36 @@ class TransactionController extends GetxService {
         'satuan': item['satuan'],
       });
     }
-    scannedItems.refresh();
-    showSuccessSnackbar('Sukses', 'Berhasil menambahkan ${item['barang_nama']}');
+    scannedItems.refresh(); // Notify Obx listeners of changes
+    showSuccessSnackbar(
+        'Sukses', 'Berhasil menambahkan ${item['barang_nama']}');
   }
 
+  /// Removes an item from the `scannedItems` list by index.
   void removeScannedItem(int index) {
-    scannedItems.removeAt(index);
-    scannedItems.refresh();
-  }
-
-  void updateItemQuantity(int index, int quantity) {
-    if (quantity > 0) {
-      scannedItems[index]['quantity'] = quantity;
-    } else {
+    if (index >= 0 && index < scannedItems.length) {
+      final removedItemName = scannedItems[index]['barang_nama'];
       scannedItems.removeAt(index);
+      scannedItems.refresh();
+      showInfoSnackbar('Info', '$removedItemName dihapus dari daftar.');
+    } else {
+      print('Attempted to remove item at invalid index: $index');
     }
-    scannedItems.refresh();
   }
 
+  /// Updates the quantity of an item in `scannedItems`. Removes if quantity is 0 or less.
+  void updateItemQuantity(int index, int quantity) {
+    if (index >= 0 && index < scannedItems.length) {
+      if (quantity > 0) {
+        scannedItems[index]['quantity'] = quantity;
+        scannedItems.refresh();
+      } else {
+        removeScannedItem(index); // Remove item if quantity becomes non-positive
+      }
+    } else {
+      print('Attempted to update quantity for item at invalid index: $index');
+    }
+  }
   Future<void> submitTransaction() async {
     if (selectedTransactionTypeId.value == 0 || scannedItems.isEmpty) {
       showErrorSnackbar('Error', 'Pilih tipe transaksi dan tambahkan barang');
@@ -509,8 +633,7 @@ class TransactionController extends GetxService {
         'items': items,
       };
 
-      print('Payload: ${jsonEncode(payload)}');
-
+      print('Submitting transaction with payload: ${jsonEncode(payload)}');
       await _transactionService.storeTransaction(
         selectedTransactionTypeId.value,
         items,
@@ -526,8 +649,9 @@ class TransactionController extends GetxService {
       await fetchBarangGudangs();
 
       showSuccessSnackbar('Sukses', 'Transaksi berhasil disimpan');
-    } catch (e) {
-      print('Error saat menyimpan transaksi: $e');
+    } catch (e, stackTrace) {
+      print('Error in submitTransaction: $e');
+      print(stackTrace);
       String errorMsg = e.toString();
       if (errorMsg.contains('Exception: Transaksi gagal!')) {
         errorMsg =
@@ -549,8 +673,10 @@ class TransactionController extends GetxService {
     print('Filtering transactions with query: "${searchQuery.value}"');
     final query = searchQuery.value.toLowerCase();
     filteredTransactionList.assignAll(filteredTransactionList.where((item) {
-      final matchesCode = item.transactionCode?.toLowerCase().contains(query) ?? false;
-      final matchesType = item.transactionType?.name?.toLowerCase().contains(query) ?? false;
+      final matchesCode =
+          item.transactionCode?.toLowerCase().contains(query) ?? false;
+      final matchesType =
+          item.transactionType?.name?.toLowerCase().contains(query) ?? false;
       return matchesCode || matchesType;
     }).toList());
     print('Filtered ${filteredTransactionList.length} transactions');
@@ -563,21 +689,26 @@ class TransactionController extends GetxService {
         ? DateTime.parse(dateRange['date_start']!).toLocal()
         : null;
     final endDate = dateRange['date_end'] != null
-        ? DateTime.parse(dateRange['date_end']!).add(const Duration(days: 1)).toLocal()
+        ? DateTime.parse(dateRange['date_end']!)
+            .add(const Duration(days: 1))
+            .toLocal()
         : null;
 
     final filtered = transactionList.where((transaction) {
-      if (startDate == null || endDate == null) return true; // No filter if null
-      final transactionDate = DateTime.parse(transaction.transactionDate!).toLocal();
+      if (startDate == null || endDate == null) return true;
+      final transactionDate =
+          DateTime.parse(transaction.transactionDate!).toLocal();
       print('Checking transaction ${transaction.transactionCode}: '
           'date=$transactionDate, start=$startDate, end=$endDate');
-      return transactionDate.isAfter(startDate) && transactionDate.isBefore(endDate);
+      return transactionDate.isAfter(startDate) &&
+          transactionDate.isBefore(endDate);
     }).toList();
 
     filteredTransactionList.assignAll(filtered);
-    print('Client-side filtered transactions: ${filtered.map((t) => t.transactionCode).toList()}');
+    print(
+        'Client-side filtered transactions: ${filtered.map((t) => t.transactionCode).toList()}');
 
-    filterTransactions(); // Apply search query filter if any
+    filterTransactions();
 
     if (filteredTransactionList.isEmpty) {
       showInfoSnackbar('Info', 'Tidak ada transaksi untuk filter yang dipilih');
@@ -595,14 +726,14 @@ class TransactionController extends GetxService {
           ? null
           : selectedTransactionTypeId.value;
 
-      // Fetch all transactions without date parameters
       await fetchAllTransactions(
         transactionTypeId: transactionTypeId,
       );
 
-      // Apply client-side filter
       applyClientSideFilter();
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('Error in applyFilter: $e');
+      print(stackTrace);
       errorMessage('Gagal menerapkan filter: $e');
       showErrorSnackbar('Error', errorMessage.value);
       if (errorMessage.value.contains('No token found')) {
@@ -619,9 +750,13 @@ class TransactionController extends GetxService {
     try {
       isLoading(true);
       errorMessage('');
+      print('Fetching transaction by ID: $id');
       final transaction = await _transactionService.getTransactionById(id);
+      print('Fetched transaction: ${transaction.transactionCode}');
       selectedTransaction(transaction);
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('Error in getTransactionById: $e');
+      print(stackTrace);
       errorMessage('Gagal memuat detail transaksi: $e');
       showErrorSnackbar('Error', errorMessage.value);
       if (errorMessage.value.contains('No token found')) {
@@ -634,40 +769,44 @@ class TransactionController extends GetxService {
     }
   }
 
-  void searchItems(String query) {
-    if (query.isEmpty) {
-      searchResults.clear();
-      return;
-    }
+  // void searchItems(String query) {
+  //   print('Searching for query: $query');
+  //   print('Available barangs: ${barangs.map((b) => b.barangNama).toList()}');
+  //   if (query.isEmpty) {
+  //     searchResults.clear();
+  //     return;
+  //   }
 
-    final lowerQuery = query.toLowerCase();
-    searchResults.assignAll(
-      barangs
-          .where((barang) =>
-              (barang.barangNama?.toLowerCase().contains(lowerQuery) ?? false) ||
-              (barang.barangKode?.toLowerCase().contains(lowerQuery) ?? false))
-          .map((barang) {
-            final barangGudang = barangGudangs.firstWhere(
-              (bg) => bg.barangId == barang.id,
-              orElse: () => BarangGudang(
-                barangId: barang.id,
-                gudangId: 0,
-                stokTersedia: 0,
-                stokDipinjam: 0,
-                stokMaintenance: 0,
-              ),
-            );
-            print('Mapping barang: ${barang.barangNama}, gudang: ${barangGudang.gudang?.name}, stok: ${barangGudang.stokTersedia}');
-            return {
-              'barang_kode': barang.barangKode,
-              'barang_nama': barang.barangNama,
-              'stok_tersedia': barangGudang.stokTersedia,
-              'gudang_name': barangGudang.gudang?.name ?? 'Tidak Diketahui',
-              'satuan': barang.satuanNama ?? 'Unit',
-            };
-          }).toList(),
-    );
-  }
+  //   final lowerQuery = query.toLowerCase();
+  //   final results = barangs
+  //       .where((barang) =>
+  //           (barang.barangNama?.toLowerCase().contains(lowerQuery) ?? false) ||
+  //           (barang.barangKode?.toLowerCase().contains(lowerQuery) ?? false))
+  //       .map((barang) {
+  //     final barangGudang = barangGudangs.firstWhere(
+  //       (bg) => bg.barangId == barang.id,
+  //       orElse: () => BarangGudang(
+  //         barangId: barang.id,
+  //         gudangId: 0,
+  //         stokTersedia: 0,
+  //         stokDipinjam: 0,
+  //         stokMaintenance: 0,
+  //       ),
+  //     );
+  //     print(
+  //         'Mapping barang: ${barang.barangNama}, gudang: ${barangGudang.gudang?.name}, stok: ${barangGudang.stokTersedia}');
+  //     return {
+  //       'barang_kode': barang.barangKode,
+  //       'barang_nama': barang.barangNama,
+  //       'stok_tersedia': barangGudang.stokTersedia,
+  //       'gudang_name': barangGudang.gudang?.name ?? 'Tidak Diketahui',
+  //       'satuan': barang.satuanNama ?? 'Unit',
+  //     };
+  //   }).toList();
+
+  //   searchResults.assignAll(results);
+  //   print('Search results: ${searchResults.map((r) => r['barang_nama']).toList()}');
+  // }
 
   void addSearchResultToScannedItems(Map<String, dynamic> item) {
     if (item['barang_kode'] == null || item['barang_kode'].isEmpty) {
@@ -696,7 +835,9 @@ class TransactionController extends GetxService {
         ],
       ),
       cancel: TextButton(
-        onPressed: () => Get.back(),
+        onPressed: () {
+          Get.back();
+        },
         child: const Text('Batal'),
       ),
       confirm: ElevatedButton(
@@ -736,10 +877,24 @@ class TransactionController extends GetxService {
   }
 
   void handleError(dynamic e, String defaultMessage) {
+    print('Handling error: $e');
     errorMessage.value = e.toString();
     if (errorMessage.value.contains('No token found')) {
       Get.offAllNamed(RoutesName.login);
     }
-    showErrorSnackbar('Error', errorMessage.value);
+    showErrorSnackbar('Error',
+        errorMessage.value.isEmpty ? defaultMessage : errorMessage.value);
+  }
+
+  void _handleAPIError(dynamic e, StackTrace stackTrace, String defaultMessage) {
+    print('API Error: $e');
+    print(stackTrace);
+    errorMessage.value = e.toString();
+    showErrorSnackbar('Error', errorMessage.value.isEmpty ? defaultMessage : errorMessage.value);
+    if (errorMessage.value.contains('No token found')) {
+      _storage.delete(key: 'auth_token');
+      _storage.delete(key: 'user');
+      Get.offAllNamed(RoutesName.login);
+    }
   }
 }
