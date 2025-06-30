@@ -3,7 +3,6 @@ import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:inventory_tsth2/Model/user_model.dart';
 import 'package:inventory_tsth2/services/auth_service.dart';
-import 'package:path/path.dart' as path;
 
 class UserService {
   final Dio _dio;
@@ -16,14 +15,14 @@ class UserService {
     AuthService? authService,
   })  : _dio = dio ??
             Dio(BaseOptions(
-              baseUrl: 'http://192.168.137.1:8000/api',
+              baseUrl: 'http://127.0.0.1:8000/api',
               headers: {'Accept': 'application/json'},
             )),
         _authService = authService ?? AuthService() {
     _storage = storage ?? const FlutterSecureStorage();
   }
 
-  String get baseUrl => _dio.options.baseUrl.replaceFirst('/api', '');
+  String get baseUrl => _dio.options.baseUrl;
 
   Future<String?> _getToken() async {
     final token = await _authService.getToken();
@@ -227,8 +226,11 @@ class UserService {
     if (token == null) throw Exception('No token found');
 
     try {
+      print('Sending change password request to: $baseUrl/users/change-password');
+      print(
+          'Request data: {current_password: $currentPassword, new_password: $newPassword}');
       final response = await _dio.post(
-        '$baseUrl/users/change-password',
+        '/users/change-password',
         data: {
           'current_password': currentPassword,
           'new_password': newPassword,
@@ -241,28 +243,20 @@ class UserService {
           },
         ),
       );
-
+      print('Response status: ${response.statusCode}');
+      print('Response data: ${response.data}');
       if (response.statusCode == 200) {
-        return; // Success
-      } else if (response.statusCode == 422) {
-        final errorData = response.data;
-        if (errorData['errors'] != null) {
-          final errors = errorData['errors'] as Map<String, dynamic>;
-          String errorMessage = '';
-          errors.forEach((field, messages) {
-            if (messages is List) {
-              errorMessage += '${messages.join('\n')} ';
-            }
-          });
-          throw Exception(errorMessage.trim());
-        } else {
-          throw Exception(errorData['message'] ?? 'Validasi gagal');
-        }
+        return;
       } else {
         throw Exception(
             response.data['message'] ?? 'Failed to change password');
       }
     } on DioException catch (e) {
+      print('DioException in changePassword: ${e.message}');
+      if (e.response != null) {
+        print('Status code: ${e.response?.statusCode}');
+        print('Response data: ${e.response?.data}');
+      }
       throw _handleError(e);
     }
   }
@@ -295,24 +289,20 @@ class UserService {
     if (e.response?.statusCode == 401) {
       return 'No token found';
     }
-    if (e.response?.data != null) {
-      if (e.response?.data['message'] != null) {
-        return e.response!.data['message'];
-      }
-      if (e.response?.data['error'] != null) {
-        return e.response!.data['error'];
-      }
-      if (e.response?.data['errors'] != null) {
-        final errors = e.response!.data['errors'] as Map<String, dynamic>;
+    if (e.response?.statusCode == 422) {
+      final errors = e.response?.data['errors'] as Map<String, dynamic>?;
+      if (errors != null) {
         String errorMessage = '';
-        for (var field in errors.keys) {
-          if (errors[field] is List && errors[field].isNotEmpty) {
-            errorMessage += '${errors[field][0]}\n';
+        errors.forEach((field, messages) {
+          if (messages is List) {
+            errorMessage += '${messages.join('\n')}\n';
           }
-        }
-        return errorMessage.trim();
+        });
+        return errorMessage.trim().isNotEmpty
+            ? errorMessage.trim()
+            : 'Validasi gagal';
       }
     }
-    return e.message ?? 'An error occurred';
+    return e.response?.data['message'] ?? e.message ?? 'An error occurred';
   }
 }

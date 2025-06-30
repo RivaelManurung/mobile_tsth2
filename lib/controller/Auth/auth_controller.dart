@@ -57,7 +57,8 @@ class AuthController extends GetxController {
         Get.offAllNamed(RoutesName.dashboard);
       } else {
         errorMessage(response['message']);
-        Get.snackbar('Error', response['message'], snackPosition: SnackPosition.BOTTOM);
+        Get.snackbar('Error', response['message'],
+            snackPosition: SnackPosition.BOTTOM);
       }
     } catch (e) {
       errorMessage(e.toString());
@@ -87,7 +88,8 @@ class AuthController extends GetxController {
       clearForm();
       Get.offAllNamed(RoutesName.login);
     } catch (e) {
-      Get.snackbar('Error', 'Logout failed: $e', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('Error', 'Logout failed: $e',
+          snackPosition: SnackPosition.BOTTOM);
     }
   }
 

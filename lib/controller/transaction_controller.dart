@@ -10,7 +10,6 @@ import 'package:inventory_tsth2/services/transaction_type_service.dart';
 import 'package:inventory_tsth2/core/routes/routes_name.dart';
 import 'package:inventory_tsth2/widget/qr_scanner_page.dart';
 import 'package:qr_code_scanner_plus/qr_code_scanner_plus.dart';
-import 'package:inventory_tsth2/widget/date_utils.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart'
@@ -18,13 +17,14 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart'
 import 'package:intl/intl.dart';
 import 'package:rxdart/rxdart.dart' as rxdart;
 
+// Kelas controller untuk mengelola transaksi, pencarian barang, pemindaian barcode, dan filter data
 class TransactionController extends GetxService {
   final TransactionService _transactionService;
   final TransactionTypeService _transactionTypeService;
   final BarangService _barangService;
   final secure_storage.FlutterSecureStorage _storage;
 
-  // Reactive state variables
+  // Variabel reaktif untuk state manajemen transaksi
   final RxList<Map<String, dynamic>> searchResults =
       <Map<String, dynamic>>[].obs;
   final RxList<Transaction> transactionList = <Transaction>[].obs;
@@ -46,15 +46,12 @@ class TransactionController extends GetxService {
   final RxString userRole = ''.obs;
   final RxString selectedDateRange = 'Semua'.obs;
   final FocusNode searchFocusNode = FocusNode();
-
-  // Form controllers
   final TextEditingController searchController = TextEditingController();
   final TextEditingController dateStartController = TextEditingController();
   final TextEditingController dateEndController = TextEditingController();
-
-  // Debounce stream for search
   final _searchSubject = rxdart.BehaviorSubject<String>();
 
+  // Konstruktor dengan dependency injection untuk layanan
   TransactionController({
     TransactionService? transactionService,
     TransactionTypeService? transactionTypeService,
@@ -65,16 +62,16 @@ class TransactionController extends GetxService {
             transactionTypeService ?? TransactionTypeService(),
         _barangService = barangService ?? BarangService(),
         _storage = storage ?? const secure_storage.FlutterSecureStorage() {
-    // Set up debounced search
+    // Mengatur pencarian dengan debounce untuk mencegah pemanggilan berulang
     _searchSubject
         .debounceTime(const Duration(milliseconds: 500))
         .listen((query) {
-      print('Debounced search query: $query');
       searchQuery.value = query;
       searchItems(query);
     });
   }
 
+  // Inisialisasi controller, memuat data awal dan mengatur listener
   @override
   void onInit() {
     super.onInit();
@@ -84,11 +81,9 @@ class TransactionController extends GetxService {
     fetchTransactionTypes();
     fetchBarangs();
     fetchBarangGudangs();
-
     searchFocusNode.addListener(() {
       print('Search FocusNode: hasFocus=${searchFocusNode.hasFocus}');
     });
-
     ever(Get.currentRoute.obs, (route) {
       if (route == RoutesName.dashboard) {
         print('Route changed to dashboard, reloading user data');
@@ -101,12 +96,14 @@ class TransactionController extends GetxService {
     });
   }
 
+  // Mengatur listener untuk input pencarian
   void _setupSearchListener() {
     searchController.addListener(() {
       _searchSubject.add(searchController.text);
     });
   }
 
+  // Membersihkan resource saat controller ditutup
   @override
   void onClose() {
     searchController.dispose();
@@ -118,46 +115,64 @@ class TransactionController extends GetxService {
     super.onClose();
   }
 
+  // Menentukan rentang tanggal untuk filter transaksi (Hari Ini, Minggu Ini, Bulan Ini, Custom)
   Map<String, String?> getDateRange(String range) {
     final now = DateTime.now();
     final formatter = DateFormat('yyyy-MM-dd');
+    final fullDateTimeFormatter = DateFormat('yyyy-MM-dd HH:mm:ss.SSS');
 
     switch (range) {
       case 'Hari Ini':
+        final today = DateTime(now.year, now.month, now.day);
+        final endOfToday =
+            DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
         return {
-          'date_start': formatter.format(now),
-          'date_end': formatter.format(now),
+          'date_start': formatter.format(today),
+          'date_end': fullDateTimeFormatter.format(endOfToday),
         };
       case 'Minggu Ini':
-        final startDate = now.subtract(Duration(days: now.weekday - 1));
+        final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+        final endOfWeek = startOfWeek.add(const Duration(days: 6));
         return {
-          'date_start': formatter.format(startDate),
-          'date_end': formatter.format(now),
+          'date_start': formatter.format(
+              DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day)),
+          'date_end': formatter
+              .format(DateTime(endOfWeek.year, endOfWeek.month, endOfWeek.day)),
         };
       case 'Bulan Ini':
         final startOfMonth = DateTime(now.year, now.month, 1);
+        final endOfMonth = DateTime(now.year, now.month + 1, 0);
         return {
           'date_start': formatter.format(startOfMonth),
-          'date_end': formatter.format(now),
+          'date_end': formatter.format(endOfMonth),
         };
       case 'Custom':
         if (dateStartController.text.isEmpty ||
             dateEndController.text.isEmpty) {
           print(
               'Warning: Custom date range selected but one or both dates are empty');
+          showErrorSnackbar(
+              'Error', 'Masukkan rentang tanggal untuk filter Custom');
           return {'date_start': null, 'date_end': null};
         }
         try {
           final startDate = DateTime.parse(dateStartController.text);
           final endDate = DateTime.parse(dateEndController.text);
-          print(
-              'Parsed custom dates: start=${formatter.format(startDate)}, end=${formatter.format(endDate)}');
+          if (endDate.isBefore(startDate)) {
+            print('Warning: End date is before start date');
+            showErrorSnackbar(
+                'Error', 'Tanggal akhir tidak boleh sebelum tanggal awal');
+            return {'date_start': null, 'date_end': null};
+          }
           return {
-            'date_start': formatter.format(startDate),
-            'date_end': formatter.format(endDate),
+            'date_start': formatter.format(
+                DateTime(startDate.year, startDate.month, startDate.day)),
+            'date_end': formatter
+                .format(DateTime(endDate.year, endDate.month, endDate.day)),
           };
         } catch (e) {
           print('Error parsing custom dates: $e');
+          showErrorSnackbar('Error', 'Format tanggal tidak valid');
           return {'date_start': null, 'date_end': null};
         }
       default:
@@ -165,6 +180,7 @@ class TransactionController extends GetxService {
     }
   }
 
+  // Mencetak daftar tipe transaksi untuk debugging
   void printTransactionTypes() {
     if (transactionTypes.isEmpty) {
       print('No transaction types available');
@@ -176,6 +192,7 @@ class TransactionController extends GetxService {
     }
   }
 
+  // Memuat data pengguna dari secure storage untuk autentikasi
   Future<void> loadUserData() async {
     try {
       final userDataString = await _storage.read(key: 'user');
@@ -197,6 +214,7 @@ class TransactionController extends GetxService {
     }
   }
 
+  // Menyimpan data pengguna ke secure storage setelah login
   Future<void> saveUserData(Map<String, dynamic> loginResponse) async {
     try {
       final data = loginResponse['data'];
@@ -209,6 +227,7 @@ class TransactionController extends GetxService {
     }
   }
 
+  // Menampilkan snackbar untuk notifikasi sukses
   void showSuccessSnackbar(String title, String message) {
     Get.snackbar(
       title,
@@ -226,6 +245,7 @@ class TransactionController extends GetxService {
     );
   }
 
+  // Menampilkan snackbar untuk notifikasi error
   void showErrorSnackbar(String title, String message) {
     Get.snackbar(
       title,
@@ -243,6 +263,7 @@ class TransactionController extends GetxService {
     );
   }
 
+  // Menampilkan snackbar untuk notifikasi informasi
   void showInfoSnackbar(String title, String message) {
     Get.snackbar(
       title,
@@ -260,6 +281,7 @@ class TransactionController extends GetxService {
     );
   }
 
+  // Mengambil semua tipe transaksi dari layanan
   Future<void> fetchTransactionTypes() async {
     try {
       isLoading(true);
@@ -284,6 +306,7 @@ class TransactionController extends GetxService {
     }
   }
 
+  // Mengambil semua data barang dari layanan
   Future<void> fetchBarangs() async {
     try {
       isLoading(true);
@@ -307,6 +330,7 @@ class TransactionController extends GetxService {
     }
   }
 
+  // Mengambil data barang gudang dari layanan
   Future<void> fetchBarangGudangs() async {
     try {
       isLoading(true);
@@ -338,6 +362,7 @@ class TransactionController extends GetxService {
     }
   }
 
+  // Mengambil semua transaksi dengan filter opsional (tipe transaksi atau kode)
   Future<void> fetchAllTransactions({
     int? transactionTypeId,
     String? transactionCode,
@@ -369,38 +394,31 @@ class TransactionController extends GetxService {
     }
   }
 
-void searchItems(String query) {
+  // Mencari barang berdasarkan nama atau kode secara client-side
+  void searchItems(String query) {
     print('Initiating client-side search for query: "$query"');
     if (query.isEmpty) {
       searchResults.clear();
       print('Search query is empty, cleared search results.');
       return;
     }
-
     final lowerQuery = query.toLowerCase();
-    // Filter the all-encompassing 'barangs' list
     final results = barangs
         .where((barang) =>
             (barang.barangNama?.toLowerCase().contains(lowerQuery) ?? false) ||
             (barang.barangKode?.toLowerCase().contains(lowerQuery) ?? false))
         .map((barang) {
-      // Find the corresponding BarangGudang to get stock and warehouse info
       final barangGudang = barangGudangs.firstWhere(
         (bg) => bg.barangId == barang.id,
-        orElse: () {
-          print('Warning: No BarangGudang found for barang ID ${barang.id}. Assigning default values.');
-          return BarangGudang(
+        orElse: () => BarangGudang(
             barangId: barang.id,
             gudangId: 0,
             stokTersedia: 0,
             stokDipinjam: 0,
-            stokMaintenance: 0,
-            // You might need to adjust default values or handle nulls in your UI if this happens
-          );
-        },
+            stokMaintenance: 0),
       );
       return {
-        'barang_id': barang.id, // Include barang_id for better identification if needed
+        'barang_id': barang.id,
         'barang_kode': barang.barangKode,
         'barang_nama': barang.barangNama,
         'stok_tersedia': barangGudang.stokTersedia,
@@ -408,24 +426,21 @@ void searchItems(String query) {
         'satuan': barang.satuanNama ?? 'Unit',
       };
     }).toList();
-
     searchResults.assignAll(results);
     print('Client-side search found ${searchResults.length} results.');
-    print('Search results: ${searchResults.map((r) => r['barang_nama'])}');
   }
 
-  /// Initiates a barcode scan using the QR scanner page.
+  // Memindai barcode menggunakan kamera dan memverifikasi hasilnya
   Future<void> scanBarcode() async {
     if (!isScanningAllowed.value) {
-      showInfoSnackbar('Info', 'Pemindaian sedang berlangsung atau tidak diizinkan sementara.');
+      showInfoSnackbar('Info',
+          'Pemindaian sedang berlangsung atau tidak diizinkan sementara.');
       return;
     }
-
     try {
       isLoading(true);
       errorMessage('');
-      isScanningAllowed(false); // Prevent multiple scans at once
-
+      isScanningAllowed(false);
       var cameraStatus = await Permission.camera.status;
       if (!cameraStatus.isGranted) {
         cameraStatus = await Permission.camera.request();
@@ -435,19 +450,13 @@ void searchItems(String query) {
           return;
         }
       }
-
-      print('Opening QR scanner...');
-      final result = await Get.to<String>(
-        () => const QRScannerPage(),
-        transition: Transition.rightToLeft,
-        duration: const Duration(milliseconds: 300),
-      );
-
-      print('QR scanner result: $result');
+      final result = await Get.to<String>(() => const QRScannerPage(),
+          transition: Transition.rightToLeft,
+          duration: const Duration(milliseconds: 300));
       if (result != null && result.isNotEmpty) {
         scannedBarcode.value = result;
-        searchController.text = result; // Update the search field with scanned barcode
-        await _checkBarcode(result); // Proceed to check barcode details
+        searchController.text = result;
+        await _checkBarcode(result);
       } else {
         errorMessage('Pemindaian dibatalkan atau tidak ada hasil.');
         showInfoSnackbar('Info', errorMessage.value);
@@ -456,14 +465,13 @@ void searchItems(String query) {
       _handleAPIError(e, stackTrace, 'Gagal memindai barcode');
     } finally {
       isLoading(false);
-      // Re-enable scanning after a short delay to prevent rapid re-scans
       Future.delayed(const Duration(milliseconds: 1500), () {
         isScanningAllowed(true);
       });
     }
   }
 
-  /// Checks a given barcode (either scanned or manually entered) against the API.
+  // Memeriksa barcode yang dimasukkan secara manual
   Future<void> checkManualBarcode(String code) async {
     if (code.isEmpty) {
       showErrorSnackbar('Error', 'Masukkan kode barcode terlebih dahulu');
@@ -472,29 +480,25 @@ void searchItems(String query) {
     await _checkBarcode(code);
   }
 
-  /// Internal helper to check barcode details from API and show dialog.
+  // Memverifikasi barcode melalui API dan menampilkan dialog untuk input jumlah
   Future<void> _checkBarcode(String code) async {
     try {
       isLoading(true);
       print('Checking barcode with API: $code');
-      final item = await _transactionService.checkBarcode(code); // This uses your API
-      print('Barcode API check result: $item');
-
+      final item = await _transactionService.checkBarcode(code);
       if (item == null || item['barang_kode'] == null) {
-        showErrorSnackbar(
-            'Error', 'Data barcode tidak valid atau barang tidak ditemukan di sistem.');
+        showErrorSnackbar('Error',
+            'Data barcode tidak valid atau barang tidak ditemukan di sistem.');
         return;
       }
-
-      // Reset quantity controller for the dialog
       quantityController.text = '1';
-
       Get.defaultDialog(
         title: 'Item Ditemukan',
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(item['barang_nama'] ?? 'Item Tidak Diketahui', style: const TextStyle(fontWeight: FontWeight.bold)),
+            Text(item['barang_nama'] ?? 'Item Tidak Diketahui',
+                style: const TextStyle(fontWeight: FontWeight.bold)),
             Text('Kode: ${item['barang_kode'] ?? 'Tidak Diketahui'}'),
             Text('Stok Tersedia: ${item['stok_tersedia'] ?? 0}'),
             Text('Gudang: ${item['gudang_name'] ?? 'Tidak Diketahui'}'),
@@ -507,23 +511,18 @@ void searchItems(String query) {
                 border: const OutlineInputBorder(),
               ),
               onFieldSubmitted: (value) {
-                // Handle submission from keyboard "Done" button
                 _validateAndAddScannedItem(item, quantityController.text);
-                Get.back(); // Close dialog after processing
+                Get.back();
               },
             ),
           ],
         ),
-        cancel: TextButton(
-          onPressed: () {
-            Get.back();
-          },
-          child: const Text('Batal'),
-        ),
+        cancel:
+            TextButton(onPressed: () => Get.back(), child: const Text('Batal')),
         confirm: ElevatedButton(
           onPressed: () {
             _validateAndAddScannedItem(item, quantityController.text);
-            Get.back(); // Close dialog after processing
+            Get.back();
           },
           child: const Text('Tambah'),
         ),
@@ -535,18 +534,16 @@ void searchItems(String query) {
     }
   }
 
-  /// Validates quantity and adds the item to `scannedItems`.
-  void _validateAndAddScannedItem(Map<String, dynamic> item, String quantityText) {
+  // Memvalidasi jumlah item yang discan dan menambahkannya ke daftar
+  void _validateAndAddScannedItem(
+      Map<String, dynamic> item, String quantityText) {
     final quantity = int.tryParse(quantityText) ?? 1;
     if (quantity <= 0) {
       showErrorSnackbar('Error', 'Jumlah harus lebih dari 0');
       return;
     }
-
-    final transactionType = transactionTypes.firstWhereOrNull(
-        (type) => type.id == selectedTransactionTypeId.value);
-
-    // If it's not "Barang Masuk" (stock-in), check against available stock
+    final transactionType = transactionTypes
+        .firstWhereOrNull((type) => type.id == selectedTransactionTypeId.value);
     if (transactionType?.name?.toLowerCase() != 'barang masuk' &&
         quantity > (item['stok_tersedia'] ?? 0)) {
       showErrorSnackbar('Error', 'Jumlah melebihi stok tersedia');
@@ -555,25 +552,19 @@ void searchItems(String query) {
     _addScannedItem(item, quantity);
   }
 
-
-  /// Adds an item to the `scannedItems` list, updating quantity if item exists.
+  // Menambahkan item ke daftar scannedItems
   void _addScannedItem(Map<String, dynamic> item, int quantity) {
     if (item['barang_kode'] == null || item['barang_kode'].isEmpty) {
       showErrorSnackbar('Error', 'Data barcode tidak valid');
       return;
     }
-
-    final existingIndex = scannedItems.indexWhere(
-      (i) => i['barang_kode'] == item['barang_kode'],
-    );
-
+    final existingIndex =
+        scannedItems.indexWhere((i) => i['barang_kode'] == item['barang_kode']);
     if (existingIndex >= 0) {
-      // If item already exists, just update its quantity
       scannedItems[existingIndex]['quantity'] += quantity;
     } else {
-      // Add new item
       scannedItems.add({
-        'barang_id': item['barang_id'], // Include barang_id for clearer item tracking
+        'barang_id': item['barang_id'],
         'barang_kode': item['barang_kode'],
         'barang_nama': item['barang_nama'],
         'quantity': quantity,
@@ -582,12 +573,12 @@ void searchItems(String query) {
         'satuan': item['satuan'],
       });
     }
-    scannedItems.refresh(); // Notify Obx listeners of changes
+    scannedItems.refresh();
     showSuccessSnackbar(
         'Sukses', 'Berhasil menambahkan ${item['barang_nama']}');
   }
 
-  /// Removes an item from the `scannedItems` list by index.
+  // Menghapus item dari daftar scannedItems
   void removeScannedItem(int index) {
     if (index >= 0 && index < scannedItems.length) {
       final removedItemName = scannedItems[index]['barang_nama'];
@@ -599,25 +590,26 @@ void searchItems(String query) {
     }
   }
 
-  /// Updates the quantity of an item in `scannedItems`. Removes if quantity is 0 or less.
+  // Memperbarui jumlah item di daftar scannedItems
   void updateItemQuantity(int index, int quantity) {
     if (index >= 0 && index < scannedItems.length) {
       if (quantity > 0) {
         scannedItems[index]['quantity'] = quantity;
         scannedItems.refresh();
       } else {
-        removeScannedItem(index); // Remove item if quantity becomes non-positive
+        removeScannedItem(index);
       }
     } else {
       print('Attempted to update quantity for item at invalid index: $index');
     }
   }
+
+  // Mengirim transaksi ke server untuk disimpan
   Future<void> submitTransaction() async {
     if (selectedTransactionTypeId.value == 0 || scannedItems.isEmpty) {
       showErrorSnackbar('Error', 'Pilih tipe transaksi dan tambahkan barang');
       return;
     }
-
     try {
       isLoading(true);
       errorMessage('');
@@ -627,27 +619,20 @@ void searchItems(String query) {
                 'quantity': item['quantity'],
               })
           .toList();
-
       final payload = {
         'transaction_type_id': selectedTransactionTypeId.value,
         'items': items,
       };
-
       print('Submitting transaction with payload: ${jsonEncode(payload)}');
       await _transactionService.storeTransaction(
-        selectedTransactionTypeId.value,
-        items,
-      );
-
+          selectedTransactionTypeId.value, items);
       scannedItems.clear();
       scannedBarcode('');
       selectedTransactionTypeId(0);
       quantityController.text = '1';
-
       await fetchAllTransactions();
       await fetchBarangs();
       await fetchBarangGudangs();
-
       showSuccessSnackbar('Sukses', 'Transaksi berhasil disimpan');
     } catch (e, stackTrace) {
       print('Error in submitTransaction: $e');
@@ -669,47 +654,71 @@ void searchItems(String query) {
     }
   }
 
+  // Memfilter transaksi berdasarkan query pencarian (kode atau tipe transaksi)
   void filterTransactions() {
     print('Filtering transactions with query: "${searchQuery.value}"');
     final query = searchQuery.value.toLowerCase();
-    filteredTransactionList.assignAll(filteredTransactionList.where((item) {
+    final filtered = filteredTransactionList.where((txn) {
       final matchesCode =
-          item.transactionCode?.toLowerCase().contains(query) ?? false;
+          txn.transactionCode?.toLowerCase().contains(query) ?? false;
       final matchesType =
-          item.transactionType?.name?.toLowerCase().contains(query) ?? false;
+          txn.transactionType?.name?.toLowerCase().contains(query) ?? false;
       return matchesCode || matchesType;
-    }).toList());
+    }).toList();
+    filteredTransactionList.assignAll(filtered);
     print('Filtered ${filteredTransactionList.length} transactions');
     filteredTransactionList.refresh();
   }
 
+  // Menerapkan filter client-side berdasarkan rentang tanggal
   void applyClientSideFilter() {
+    print(
+        'Applying client-side filter with selected range: ${selectedDateRange.value}');
     final dateRange = getDateRange(selectedDateRange.value);
-    final startDate = dateRange['date_start'] != null
-        ? DateTime.parse(dateRange['date_start']!).toLocal()
-        : null;
-    final endDate = dateRange['date_end'] != null
-        ? DateTime.parse(dateRange['date_end']!)
-            .add(const Duration(days: 1))
-            .toLocal()
-        : null;
-
-    final filtered = transactionList.where((transaction) {
-      if (startDate == null || endDate == null) return true;
-      final transactionDate =
-          DateTime.parse(transaction.transactionDate!).toLocal();
-      print('Checking transaction ${transaction.transactionCode}: '
-          'date=$transactionDate, start=$startDate, end=$endDate');
-      return transactionDate.isAfter(startDate) &&
-          transactionDate.isBefore(endDate);
+    DateTime? startDate;
+    DateTime? endDate;
+    if (dateRange['date_start'] != null && dateRange['date_end'] != null) {
+      try {
+        startDate = DateTime.parse(dateRange['date_start']!).toLocal();
+        endDate = DateTime.parse(dateRange['date_end']!).toLocal();
+        print('Filter date range: start=$startDate, end=$endDate');
+      } catch (e) {
+        print('Error parsing date range: $e');
+        showErrorSnackbar('Error', 'Format tanggal tidak valid');
+        return;
+      }
+    }
+    final filtered = transactionList.where((txn) {
+      if (startDate == null || endDate == null) {
+        print('No date filter applied (Semua selected)');
+        return true;
+      }
+      if (txn.transactionDate == null) {
+        print(
+            'Transaction ${txn.transactionCode}: null transactionDate, excluded');
+        return false;
+      }
+      try {
+        final transactionDate = DateTime.parse(txn.transactionDate!).toLocal();
+        final transactionDateOnly = DateTime(
+            transactionDate.year, transactionDate.month, transactionDate.day);
+        final startDateOnly =
+            DateTime(startDate.year, startDate.month, startDate.day);
+        final endDateOnly = DateTime(endDate.year, endDate.month, endDate.day);
+        final isWithinRange = !transactionDateOnly.isBefore(startDateOnly) &&
+            !transactionDateOnly.isAfter(endDateOnly);
+        print(
+            'Transaction ${txn.transactionCode}: date=$transactionDateOnly, isWithinRange=$isWithinRange');
+        return isWithinRange;
+      } catch (e) {
+        print('Error parsing transaction date for ${txn.transactionCode}: $e');
+        return false;
+      }
     }).toList();
-
     filteredTransactionList.assignAll(filtered);
     print(
-        'Client-side filtered transactions: ${filtered.map((t) => t.transactionCode).toList()}');
-
+        'Filtered ${filtered.length} transactions: ${filtered.map((t) => t.transactionCode).toList()}');
     filterTransactions();
-
     if (filteredTransactionList.isEmpty) {
       showInfoSnackbar('Info', 'Tidak ada transaksi untuk filter yang dipilih');
     } else {
@@ -717,20 +726,25 @@ void searchItems(String query) {
     }
   }
 
+  // Menerapkan filter transaksi dengan kombinasi server dan client-side
   Future<void> applyFilter() async {
     try {
       isLoading(true);
       errorMessage('');
-
+      print(
+          'Applying filter with selectedDateRange: ${selectedDateRange.value}, transactionTypeId: ${selectedTransactionTypeId.value}');
       final transactionTypeId = selectedTransactionTypeId.value == 0
           ? null
           : selectedTransactionTypeId.value;
-
-      await fetchAllTransactions(
-        transactionTypeId: transactionTypeId,
-      );
-
-      applyClientSideFilter();
+      if (transactionTypeId != null) {
+        print(
+            'Fetching transactions for transactionTypeId: $transactionTypeId');
+        await fetchAllTransactions(transactionTypeId: transactionTypeId);
+      } else {
+        print(
+            'Applying client-side filter for date range: ${selectedDateRange.value}');
+        applyClientSideFilter();
+      }
     } catch (e, stackTrace) {
       print('Error in applyFilter: $e');
       print(stackTrace);
@@ -746,6 +760,7 @@ void searchItems(String query) {
     }
   }
 
+  // Mengambil detail transaksi berdasarkan ID
   Future<void> getTransactionById(int id) async {
     try {
       isLoading(true);
@@ -769,51 +784,12 @@ void searchItems(String query) {
     }
   }
 
-  // void searchItems(String query) {
-  //   print('Searching for query: $query');
-  //   print('Available barangs: ${barangs.map((b) => b.barangNama).toList()}');
-  //   if (query.isEmpty) {
-  //     searchResults.clear();
-  //     return;
-  //   }
-
-  //   final lowerQuery = query.toLowerCase();
-  //   final results = barangs
-  //       .where((barang) =>
-  //           (barang.barangNama?.toLowerCase().contains(lowerQuery) ?? false) ||
-  //           (barang.barangKode?.toLowerCase().contains(lowerQuery) ?? false))
-  //       .map((barang) {
-  //     final barangGudang = barangGudangs.firstWhere(
-  //       (bg) => bg.barangId == barang.id,
-  //       orElse: () => BarangGudang(
-  //         barangId: barang.id,
-  //         gudangId: 0,
-  //         stokTersedia: 0,
-  //         stokDipinjam: 0,
-  //         stokMaintenance: 0,
-  //       ),
-  //     );
-  //     print(
-  //         'Mapping barang: ${barang.barangNama}, gudang: ${barangGudang.gudang?.name}, stok: ${barangGudang.stokTersedia}');
-  //     return {
-  //       'barang_kode': barang.barangKode,
-  //       'barang_nama': barang.barangNama,
-  //       'stok_tersedia': barangGudang.stokTersedia,
-  //       'gudang_name': barangGudang.gudang?.name ?? 'Tidak Diketahui',
-  //       'satuan': barang.satuanNama ?? 'Unit',
-  //     };
-  //   }).toList();
-
-  //   searchResults.assignAll(results);
-  //   print('Search results: ${searchResults.map((r) => r['barang_nama']).toList()}');
-  // }
-
+  // Menambahkan item dari hasil pencarian ke daftar scannedItems dengan dialog konfirmasi
   void addSearchResultToScannedItems(Map<String, dynamic> item) {
     if (item['barang_kode'] == null || item['barang_kode'].isEmpty) {
       showErrorSnackbar('Error', 'Data barang tidak valid');
       return;
     }
-
     Get.defaultDialog(
       title: 'Tambah Barang',
       content: Column(
@@ -834,12 +810,8 @@ void searchItems(String query) {
           ),
         ],
       ),
-      cancel: TextButton(
-        onPressed: () {
-          Get.back();
-        },
-        child: const Text('Batal'),
-      ),
+      cancel:
+          TextButton(onPressed: () => Get.back(), child: const Text('Batal')),
       confirm: ElevatedButton(
         onPressed: () {
           final quantity = int.tryParse(quantityController.text) ?? 1;
@@ -864,8 +836,8 @@ void searchItems(String query) {
     );
   }
 
+  // Mereset data dan memuat ulang dari server
   void refreshData() {
-    selectedDateRange('Semua');
     dateStartController.clear();
     dateEndController.clear();
     fetchAllTransactions();
@@ -876,6 +848,7 @@ void searchItems(String query) {
     quantityController.text = '1';
   }
 
+  // Menangani error umum dengan notifikasi dan redirect ke login jika token tidak valid
   void handleError(dynamic e, String defaultMessage) {
     print('Handling error: $e');
     errorMessage.value = e.toString();
@@ -886,11 +859,14 @@ void searchItems(String query) {
         errorMessage.value.isEmpty ? defaultMessage : errorMessage.value);
   }
 
-  void _handleAPIError(dynamic e, StackTrace stackTrace, String defaultMessage) {
+  // Menangani error API dengan logging dan redirect ke login jika token tidak valid
+  void _handleAPIError(
+      dynamic e, StackTrace stackTrace, String defaultMessage) {
     print('API Error: $e');
     print(stackTrace);
     errorMessage.value = e.toString();
-    showErrorSnackbar('Error', errorMessage.value.isEmpty ? defaultMessage : errorMessage.value);
+    showErrorSnackbar('Error',
+        errorMessage.value.isEmpty ? defaultMessage : errorMessage.value);
     if (errorMessage.value.contains('No token found')) {
       _storage.delete(key: 'auth_token');
       _storage.delete(key: 'user');

@@ -13,7 +13,8 @@ class SatuanController extends GetxController {
   final Rx<Satuan?> selectedSatuan = Rx<Satuan?>(null);
   final RxBool isLoading = false.obs;
   final RxString errorMessage = ''.obs; // General error message
-  final RxString listErrorMessage = ''.obs; // Error message specific to list fetching
+  final RxString listErrorMessage =
+      ''.obs; // Error message specific to list fetching
   final RxString searchQuery = ''.obs;
 
   // Form controllers

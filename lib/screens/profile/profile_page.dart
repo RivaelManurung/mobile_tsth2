@@ -355,7 +355,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildProfileAvatar(User user, bool isSmallScreen) {
     return Hero(
-      tag: 'profile-avatar',
+      tag: 'profileadrenergic-avatar',
       child: GestureDetector(
         onTap: () => _navigateToEditProfile(context),
         child: Container(
@@ -719,17 +719,31 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                         onPressed: () async {
                           // Client-side validation
-                          if (newPasswordController.text.length < 8) {
-                            Get.snackbar('Error', 'Password baru minimal 8 karakter.',
-                                backgroundColor: Colors.red, colorText: Colors.white);
+                          final newPassword = newPasswordController.text;
+                          if (newPassword.length < 8) {
+                            Get.snackbar('Error',
+                                'Password baru minimal 8 karakter.',
+                                backgroundColor: Colors.red,
+                                colorText: Colors.white);
                             return;
                           }
-                          if (newPasswordController.text !=
-                              confirmPasswordController.text) {
-                            Get.snackbar('Error', 'Password baru tidak cocok.',
-                                backgroundColor: Colors.red, colorText: Colors.white);
+                          if (!RegExp(
+                                  r'^(?=.*[a-z])(?=.*[A-Z])(?=.*[\W_]).+$')
+                              .hasMatch(newPassword)) {
+                            Get.snackbar('Error',
+                                'Password baru harus mengandung huruf besar, huruf kecil, dan simbol.',
+                                backgroundColor: Colors.red,
+                                colorText: Colors.white);
                             return;
                           }
+                          if (newPassword != confirmPasswordController.text) {
+                            Get.snackbar('Error',
+                                'Konfirmasi password baru tidak cocok.',
+                                backgroundColor: Colors.red,
+                                colorText: Colors.white);
+                            return;
+                          }
+
                           try {
                             Get.dialog(
                               const Center(child: CircularProgressIndicator()),
@@ -740,19 +754,26 @@ class _ProfilePageState extends State<ProfilePage> {
                               newPassword: newPasswordController.text,
                             );
                             Get.back(); // Close the loading dialog
-                            Navigator.pop(context);
-                            Get.snackbar('Sukses', 'Password berhasil diperbarui.',
-                                backgroundColor: Colors.green, colorText: Colors.white);
+                            Navigator.pop(context); // Close the dialog
+                            Get.snackbar('Sukses',
+                                'Password berhasil diperbarui.',
+                                backgroundColor: Colors.green,
+                                colorText: Colors.white);
                           } catch (e) {
                             Get.back(); // Close the loading dialog
-                            String errorMessage = 'Validasi gagal atau kesalahan server.';
+                            String errorMessage =
+                                'Gagal mengubah password: $e';
                             if (e.toString().contains('current_password')) {
                               errorMessage = 'Password saat ini salah.';
-                            } else if (e.toString().contains('new_password')) {
-                              errorMessage = 'Password baru harus minimal 8 karakter atau memenuhi aturan lainnya.';
+                            } else if (e
+                                .toString()
+                                .contains('new_password')) {
+                              errorMessage =
+                                  'Password baru tidak memenuhi persyaratan.';
                             }
                             Get.snackbar('Error', errorMessage,
-                                backgroundColor: Colors.red, colorText: Colors.white);
+                                backgroundColor: Colors.red,
+                                colorText: Colors.white);
                           }
                         },
                         child: Text('Simpan',

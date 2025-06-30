@@ -1,4 +1,3 @@
-// gudang_controller.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:inventory_tsth2/Model/gudang_model.dart';
@@ -16,7 +15,9 @@ class GudangController extends GetxController {
   final RxList<Gudang> filteredGudang = <Gudang>[].obs;
   final Rx<Gudang?> selectedGudang = Rx<Gudang?>(null);
   final RxBool isLoading = false.obs;
-  final RxString errorMessage = ''.obs;
+  final RxString errorMessage = ''.obs; // General error message
+  final RxString listErrorMessage =
+      ''.obs; // Error message specific to list fetching
   final RxList<User> userList = <User>[].obs;
   final Rx<User?> selectedUser = Rx<User?>(null);
   final RxString searchQuery = ''.obs;
@@ -63,23 +64,19 @@ class GudangController extends GetxController {
     try {
       print('Fetching users...');
       isLoading(true);
-      errorMessage('');
+      listErrorMessage('');
       final users = await _userService.getAllUsers();
       userList.assignAll(users);
       print('Users fetched successfully: ${userList.length} users');
     } catch (e) {
       print('Error fetching users: $e');
-      errorMessage(e.toString());
-      // Get.snackbar(
-      //   'Gagal',
-      //   'Gagal memuat daftar pengguna: $e',
-      //   snackPosition: SnackPosition.TOP,
-      //   backgroundColor: Colors.red,
-      //   colorText: Colors.white,
-      //   margin: const EdgeInsets.all(16),
-      //   borderRadius: 12,
-      //   duration: const Duration(seconds: 3),
-      // );
+      listErrorMessage(e.toString());
+      if (listErrorMessage.value.contains('No token found') ||
+          listErrorMessage.value
+              .contains('User doesn\'t have any permission')) {
+        print('Redirecting to login...');
+        Get.offAllNamed(RoutesName.login);
+      }
     } finally {
       isLoading(false);
     }
@@ -89,15 +86,18 @@ class GudangController extends GetxController {
     try {
       print('Fetching gudang...');
       isLoading(true);
-      errorMessage('');
+      listErrorMessage('');
       final gudang = await _service.getAllGudang();
       gudangList.assignAll(gudang);
       filterGudang();
       print('Gudang fetched successfully');
     } catch (e) {
       print('Error fetching gudang: $e');
-      errorMessage(e.toString());
-      if (errorMessage.value.contains('No token found')) {
+      listErrorMessage(e.toString());
+      if (listErrorMessage.value.contains('No token found') ||
+          listErrorMessage.value
+              .contains('User doesn\'t have any permission')) {
+        print('Redirecting to login...');
         Get.offAllNamed(RoutesName.login);
       }
     } finally {
@@ -113,14 +113,17 @@ class GudangController extends GetxController {
       final gudang = await _service.getGudangById(id);
       selectedGudang(gudang);
       if (gudang.userId != null) {
-        selectedUser.value = userList.firstWhereOrNull((user) => user.id == gudang.userId);
+        selectedUser.value =
+            userList.firstWhereOrNull((user) => user.id == gudang.userId);
       } else {
         selectedUser.value = null;
       }
     } catch (e) {
       print('Error fetching gudang by id: $e');
       errorMessage(e.toString());
-      if (errorMessage.value.contains('No token found')) {
+      if (errorMessage.value.contains('No token found') ||
+          errorMessage.value.contains('User doesn\'t have any permission')) {
+        print('Redirecting to login...');
         Get.offAllNamed(RoutesName.login);
       }
     } finally {
@@ -143,5 +146,6 @@ class GudangController extends GetxController {
 
   void resetErrorForListPage() {
     errorMessage('');
+    listErrorMessage('');
   }
 }

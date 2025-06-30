@@ -299,8 +299,8 @@ class TransactionListPage extends StatelessWidget {
                         color: Color(0xFF5A67D8),
                         size: 24,
                       ),
-                    ),
-                  ).animate().fadeIn(delay: 500.ms).scale(),
+                    ).animate().fadeIn(delay: 500.ms).scale(),
+                  ),
                 ),
               ],
             ),
@@ -352,6 +352,8 @@ class TransactionListPage extends StatelessWidget {
               vertical: 16,
             ),
             child: Obx(() {
+              print(
+                  'Rendering TransactionListPage with ${_controller.filteredTransactionList.length} transactions: ${_controller.filteredTransactionList.map((t) => t.transactionCode).toList()}');
               if (_controller.isLoading.value) {
                 return const Center(
                   child: CircularProgressIndicator(

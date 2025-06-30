@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
 import 'package:inventory_tsth2/controller/transaction_controller.dart';
 
+// Kelas untuk halaman pembuatan transaksi baru
 class TransactionCreatePage extends StatefulWidget {
   const TransactionCreatePage({super.key});
 
@@ -11,83 +12,80 @@ class TransactionCreatePage extends StatefulWidget {
 }
 
 class _TransactionCreatePageState extends State<TransactionCreatePage> {
+  // Controller untuk kolom pencarian
   final TextEditingController _searchTextController = TextEditingController();
+  // FocusNode untuk mengelola fokus pada kolom pencarian
   final FocusNode _searchFocusNode = FocusNode();
 
-  // Use a late final to ensure it's initialized before use in build,
-  // relying on Get.find() in initState.
+  // Deklarasi controller untuk mengelola logika transaksi, diinisialisasi di initState
   late final TransactionController _controller;
 
   @override
   void initState() {
     super.initState();
     try {
+      // Mengambil instance TransactionController menggunakan GetX
       _controller = Get.find<TransactionController>();
-      print('TransactionController initialized successfully');
+      print('TransactionController berhasil diinisialisasi');
     } catch (e, stackTrace) {
-      print('Error initializing TransactionController: $e');
+      // Menangani error jika controller gagal diinisialisasi
+      print('Gagal menginisialisasi TransactionController: $e');
       print(stackTrace);
-      // Post a frame callback to ensure the snackbar is shown after build completes
+      // Menampilkan snackbar untuk notifikasi error setelah build selesai
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        Get.snackbar('Error', 'Failed to initialize controller: $e',
+        Get.snackbar('Error', 'Gagal menginisialisasi controller: $e',
             snackPosition: SnackPosition.BOTTOM);
       });
-      // Optionally, you might want to return early or show a persistent error state
-      // if the controller is absolutely critical and can't be initialized.
-      return; // Exit initState if controller couldn't be found
+      return; // Keluar dari initState jika controller tidak ditemukan
     }
 
-    // Sync TextEditingController with searchController initially.
-    // The local controller's text should reflect the GetX controller's state.
+    // Menyinkronkan teks awal dari TextEditingController dengan searchQuery di controller
     _searchTextController.text = _controller.searchQuery.value;
 
-    // Listen to changes from the local TextEditingController and update the GetX controller's RxString.
-    // This is the primary way the UI input flows to the controller's search state.
+    // Mendengarkan perubahan pada TextEditingController lokal untuk memperbarui searchQuery
     _searchTextController.addListener(() {
-      // Only update if the text is genuinely different to avoid unnecessary rebuilds or loops.
       if (_searchTextController.text != _controller.searchQuery.value) {
         _controller.searchQuery.value = _searchTextController.text;
-        print('TextController listener: text=${_searchTextController.text}');
+        print(
+            'TextController mendeteksi perubahan: teks=${_searchTextController.text}');
       }
     });
 
-    // Observe changes from the GetX controller's searchController.text.
-    // This allows the local _searchTextController to react to changes made by the GetX controller
-    // (e.g., after a barcode scan populates _controller.searchController.text).
-    // Ensure that TransactionController.searchController is a TextEditingController and its changes
-    // are meant to be reflected in this UI's search field.
+    // Mendengarkan perubahan pada searchController di TransactionController
     _controller.searchController.addListener(() {
       if (_searchTextController.text != _controller.searchController.text) {
         _searchTextController.text = _controller.searchController.text;
-        // Move cursor to the end of the text if it was updated programmatically
+        // Mengatur posisi kursor ke akhir teks setelah pembaruan
         _searchTextController.selection = TextSelection.fromPosition(
           TextPosition(offset: _searchTextController.text.length),
         );
-        print('Controller listener updated text to: ${_controller.searchController.text}');
+        print(
+            'Teks diperbarui dari controller: ${_controller.searchController.text}');
       }
     });
 
+    // Mendengarkan perubahan fokus pada kolom pencarian
     _searchFocusNode.addListener(() {
       print(
           'Search FocusNode: hasFocus=${_searchFocusNode.hasFocus}, hasPrimaryFocus=${_searchFocusNode.hasPrimaryFocus}');
       if (_searchFocusNode.hasFocus) {
-        print('Search field gained focus');
+        print('Kolom pencarian mendapat fokus');
       } else {
-        print('Search field lost focus');
+        print('Kolom pencarian kehilangan fokus');
       }
     });
   }
 
   @override
   void dispose() {
-    // Dispose all TextEditingControllers and FocusNodes to prevent memory leaks.
+    // Membersihkan TextEditingController dan FocusNode untuk mencegah kebocoran memori
     _searchTextController.dispose();
     _searchFocusNode.dispose();
-    // No need to dispose _controller if it's managed by GetX
-    // and will be disposed by Get.delete() or when its scope ends.
+    // Tidak perlu dispose _controller karena dikelola oleh GetX
     super.dispose();
   }
 
+  // Menentukan warna berdasarkan tipe transaksi
   Color _getTransactionTypeColor(String? type) {
     switch (type?.toLowerCase()) {
       case 'barang masuk':
@@ -101,9 +99,9 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
     }
   }
 
+  // Mendapatkan nama tipe transaksi berdasarkan ID
   String _getTransactionTypeName(int? typeId) {
     if (typeId == null || typeId == 0) return 'Pilih Tipe';
-    // Use safe access with firstWhereOrNull and null check
     final type = _controller.transactionTypes
         .firstWhereOrNull((t) => t.id == typeId)
         ?.name;
@@ -112,16 +110,14 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
 
   @override
   Widget build(BuildContext context) {
-    // This check acts as a safeguard in case initState didn't return immediately
-    // or if the controller somehow became null (which shouldn't happen with `late final`).
-    // If it still reaches here and _controller is null, something went very wrong.
+    // Memeriksa apakah controller telah diinisialisasi
     try {
-      _controller; // Simply access it to trigger a potential error if null
+      _controller;
     } catch (e) {
       return Scaffold(
         body: Center(
           child: Text(
-            'Error: Controller not initialized. Please restart the app.',
+            'Error: Controller belum diinisialisasi. Silakan restart aplikasi.',
             style: const TextStyle(color: Colors.red, fontSize: 18),
             textAlign: TextAlign.center,
           ),
@@ -129,58 +125,62 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
       );
     }
 
+    // Menentukan apakah layar kecil berdasarkan lebar perangkat
     final isSmallScreen = MediaQuery.of(context).size.width < 400;
 
+    // Membangun tampilan utama dengan Scaffold
     return Scaffold(
-      resizeToAvoidBottomInset: true, // Allows the body to resize when keyboard appears
+      resizeToAvoidBottomInset:
+          true, // Mengizinkan penyesuaian saat keyboard muncul
       backgroundColor: const Color(0xFFF8FAFF),
       body: GestureDetector(
         onTap: () {
-          // Unfocus the search field when tapping outside of it.
-          // This prevents the keyboard from staying open.
+          // Menghilangkan fokus dari kolom pencarian saat mengetuk area luar
           if (_searchFocusNode.hasFocus) {
             FocusScope.of(context).unfocus();
-            print('Tapped outside, unfocusing search field');
+            print('Mengetuk luar, menghilangkan fokus kolom pencarian');
           }
         },
-        behavior: HitTestBehavior.opaque, // Ensures the whole area is tappable
+        behavior: HitTestBehavior.opaque,
         child: CustomScrollView(
-          physics: const ClampingScrollPhysics(), // Prevents excessive scrolling bounce
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual, // Control keyboard dismissal manually
+          physics: const ClampingScrollPhysics(), // Mengatur perilaku scroll
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
           slivers: [
-            _buildAppBar(isSmallScreen),
-            _buildAddTransactionView(isSmallScreen),
+            _buildAppBar(isSmallScreen), // Membuat AppBar
+            _buildAddTransactionView(
+                isSmallScreen), // Membuat tampilan form transaksi
           ],
         ),
       ),
     );
   }
 
+  // Membuat AppBar dengan efek gradien dan animasi / header
   SliverAppBar _buildAppBar(bool isSmallScreen) {
     return SliverAppBar(
       expandedHeight: isSmallScreen ? 120 : 140,
       floating: false,
       pinned: true,
       elevation: 0,
-      backgroundColor: Colors.transparent, // Background handled by FlexibleSpaceBar
-      surfaceTintColor: Colors.transparent, // Prevents default tinting
-      shadowColor: Colors.black.withOpacity(0.1), // Subtle shadow
+      backgroundColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
+      shadowColor: Colors.black.withOpacity(0.1),
       leading: Padding(
         padding: const EdgeInsets.only(left: 8.0),
         child: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white, size: 28),
           onPressed: () => Get.back(),
           tooltip: 'Kembali',
-        ).animate().fadeIn(delay: 300.ms).scale(), // Animations for a polished look
+        ).animate().fadeIn(delay: 300.ms).scale(),
       ),
       flexibleSpace: FlexibleSpaceBar(
-        collapseMode: CollapseMode.parallax, // Parallax effect on scroll
+        collapseMode: CollapseMode.parallax,
         background: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Color(0xFF5A67D8), Color(0xFF4C51BF)], // Gradient for AppBar
+              colors: [Color(0xFF5A67D8), Color(0xFF4C51BF)],
             ),
             borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
             boxShadow: [
@@ -241,6 +241,7 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
     );
   }
 
+  // Membuat tampilan utama untuk form pembuatan transaksi
   SliverToBoxAdapter _buildAddTransactionView(bool isSmallScreen) {
     return SliverToBoxAdapter(
       child: Padding(
@@ -297,11 +298,12 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildSearchSection(isSmallScreen),
+                    _buildSearchSection(isSmallScreen), // Bagian pencarian
                     const SizedBox(height: 24),
-                    _buildItemsSection(isSmallScreen: isSmallScreen),
+                    _buildItemsSection(
+                        isSmallScreen: isSmallScreen), // Daftar barang
                     const SizedBox(height: 24),
-                    _buildSubmitSection(isSmallScreen),
+                    _buildSubmitSection(isSmallScreen), // Tombol submit
                   ],
                 ),
               ),
@@ -312,6 +314,7 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
     );
   }
 
+  // Membuat bagian pencarian barang
   Widget _buildSearchSection(bool isSmallScreen) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -333,8 +336,7 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
           Row(
             children: [
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: const Color(0xFF4CAF50),
                   borderRadius: BorderRadius.circular(6),
@@ -351,34 +353,37 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
             ],
           ),
           const SizedBox(height: 16),
-          _buildSearchField(isSmallScreen),
+          _buildSearchField(isSmallScreen), // Kolom pencarian
           const SizedBox(height: 16),
-          _buildTransactionTypeDropdown(isSmallScreen),
+          _buildTransactionTypeDropdown(
+              isSmallScreen), // Dropdown tipe transaksi
           const SizedBox(height: 16),
           Row(
             children: [
               Expanded(
-                child: _buildManualCheckButton(isSmallScreen),
+                child:
+                    _buildManualCheckButton(isSmallScreen), // Tombol cek manual
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: _buildScanButton(isSmallScreen),
+                child: _buildScanButton(isSmallScreen), // Tombol pindai barcode
               ),
             ],
           ),
           const SizedBox(height: 16),
-          _buildSearchResults(isSmallScreen),
+          _buildSearchResults(isSmallScreen), // Hasil pencarian
         ],
       ),
     ).animate().fadeIn(delay: 200.ms);
   }
 
+  // Membuat kolom pencarian
   Widget _buildSearchField(bool isSmallScreen) {
     return Obx(
       () => TextFormField(
         controller: _searchTextController,
         focusNode: _searchFocusNode,
-        autofocus: false, // Set to true if you want it focused on page load
+        autofocus: false,
         decoration: InputDecoration(
           labelText: 'Cari Nama Barang atau Kode Barcode',
           labelStyle: TextStyle(
@@ -418,16 +423,16 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
                   onPressed: () {
                     try {
                       _searchTextController.clear();
-                      _controller.searchController
-                          .clear(); // Clear controller's internal text as well
-                      _controller.searchQuery.value = ''; // Reset reactive query
-                      _controller.searchResults.clear(); // Clear search results
-                      _searchFocusNode.unfocus(); // Dismiss keyboard
-                      print('Clear button pressed, cleared text and unfocused');
+                      _controller.searchController.clear();
+                      _controller.searchQuery.value = '';
+                      _controller.searchResults.clear();
+                      _searchFocusNode.unfocus();
+                      print(
+                          'Tombol hapus ditekan, teks dihapus dan fokus dihilangkan');
                     } catch (e, stackTrace) {
-                      print('Error in clear button: $e');
+                      print('Gagal saat menghapus teks: $e');
                       print(stackTrace);
-                      Get.snackbar('Error', 'Failed to clear search: $e');
+                      Get.snackbar('Error', 'Gagal menghapus pencarian: $e');
                     }
                   },
                 )
@@ -446,36 +451,31 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
           fontSize: isSmallScreen ? 15 : 16,
           color: const Color(0xFF1A1D1F),
         ),
-        textInputAction: TextInputAction.search, // Keyboard action button
+        textInputAction: TextInputAction.search,
         keyboardType: TextInputType.text,
         onTap: () {
-          print('TextFormField tapped, requesting focus');
-          _searchFocusNode.requestFocus(); // Ensure focus when tapped
+          print('Kolom teks ditekan, meminta fokus');
+          _searchFocusNode.requestFocus();
         },
         onFieldSubmitted: (value) {
-          // Trigger search immediately when "Enter" is pressed on the keyboard
           try {
-            print('TextFormField onFieldSubmitted: value=$value');
+            print('Kolom teks disubmit: nilai=$value');
             if (value.isNotEmpty) {
-              // The listener already updates searchQuery.value, and _searchSubject debounces it.
-              // Explicitly calling searchItems here ensures an immediate search on submission.
               _controller.searchItems(value);
-              _searchFocusNode.unfocus(); // Unfocus after submission
-              print('Search submitted and unfocused');
+              _searchFocusNode.unfocus();
+              print('Pencarian disubmit dan fokus dihilangkan');
             }
           } catch (e, stackTrace) {
-            print('Error in onFieldSubmitted: $e');
+            print('Gagal saat submit pencarian: $e');
             print(stackTrace);
-            Get.snackbar('Error', 'Failed to submit search: $e');
+            Get.snackbar('Error', 'Gagal melakukan pencarian: $e');
           }
         },
-        // validator: (value) => value == null || value.isEmpty
-        //     ? 'Masukkan kode atau nama barang' // Uncomment if you want immediate validation feedback
-        //     : null,
       ),
     );
   }
 
+  // Membuat dropdown untuk memilih tipe transaksi
   Widget _buildTransactionTypeDropdown(bool isSmallScreen) {
     return Obx(
       () => DropdownButtonFormField<int>(
@@ -518,7 +518,7 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
               const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
         ),
         value: _controller.selectedTransactionTypeId.value == 0
-            ? null // If 0 (default), show hint text
+            ? null
             : _controller.selectedTransactionTypeId.value,
         items: _controller.transactionTypes
             .map((type) => DropdownMenuItem(
@@ -530,13 +530,13 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
           try {
             if (value != null) {
               _controller.selectedTransactionTypeId.value = value;
-              _searchFocusNode.unfocus(); // Dismiss keyboard when changing dropdown
-              print('Dropdown changed, unfocusing search field');
+              _searchFocusNode.unfocus();
+              print('Dropdown diubah, menghilangkan fokus kolom pencarian');
             }
           } catch (e, stackTrace) {
-            print('Error in dropdown onChanged: $e');
+            print('Gagal saat mengubah dropdown: $e');
             print(stackTrace);
-            Get.snackbar('Error', 'Failed to select transaction type: $e');
+            Get.snackbar('Error', 'Gagal memilih tipe transaksi: $e');
           }
         },
         validator: (value) =>
@@ -555,24 +555,22 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
     );
   }
 
+  // Membuat tombol untuk cek manual barcode
   Widget _buildManualCheckButton(bool isSmallScreen) {
     return Obx(() => ElevatedButton(
           onPressed: _controller.isLoading.value ||
-                  _controller.searchQuery.value
-                      .isEmpty // Disable if loading or search query is empty
+                  _controller.searchQuery.value.isEmpty
               ? null
               : () {
                   try {
-                    // Call checkManualBarcode with the current search query
                     _controller
                         .checkManualBarcode(_controller.searchQuery.value);
-                    _searchFocusNode.unfocus(); // Dismiss keyboard
-                    print(
-                        'Manual check button pressed, unfocusing search field');
+                    _searchFocusNode.unfocus();
+                    print('Tombol cek manual ditekan, menghilangkan fokus');
                   } catch (e, stackTrace) {
-                    print('Error in manual check button: $e');
+                    print('Gagal saat cek manual: $e');
                     print(stackTrace);
-                    Get.snackbar('Error', 'Failed to check barcode: $e');
+                    Get.snackbar('Error', 'Gagal memeriksa barcode: $e');
                   }
                 },
           style: ElevatedButton.styleFrom(
@@ -588,7 +586,7 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
             decoration: BoxDecoration(
               color: _controller.isLoading.value ||
                       _controller.searchQuery.value.isEmpty
-                  ? Colors.grey[400] // Grey out if disabled
+                  ? Colors.grey[400]
                   : const Color(0xFF4CAF50),
               borderRadius: BorderRadius.circular(12),
             ),
@@ -606,21 +604,21 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
         ));
   }
 
+  // Membuat tombol untuk memindai barcode
   Widget _buildScanButton(bool isSmallScreen) {
     return Obx(() => ElevatedButton(
           onPressed: _controller.isLoading.value ||
-                  !_controller.isScanningAllowed
-                      .value // Disable if loading or scanning is not allowed
+                  !_controller.isScanningAllowed.value
               ? null
               : () {
                   try {
                     _controller.scanBarcode();
-                    _searchFocusNode.unfocus(); // Dismiss keyboard
-                    print('Scan button pressed, unfocusing search field');
+                    _searchFocusNode.unfocus();
+                    print('Tombol pindai ditekan, menghilangkan fokus');
                   } catch (e, stackTrace) {
-                    print('Error in scan button: $e');
+                    print('Gagal saat memindai barcode: $e');
                     print(stackTrace);
-                    Get.snackbar('Error', 'Failed to scan barcode: $e');
+                    Get.snackbar('Error', 'Gagal memindai barcode: $e');
                   }
                 },
           style: ElevatedButton.styleFrom(
@@ -634,16 +632,15 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
           ),
           child: Container(
             decoration: BoxDecoration(
-              color: _controller.isLoading.value || !_controller.isScanningAllowed.value
-                  ? Colors.grey[400] // Grey out if disabled
+              color: _controller.isLoading.value ||
+                      !_controller.isScanningAllowed.value
+                  ? Colors.grey[400]
                   : const Color(0xFF2196F3),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Center(
               child: Text(
-                _controller.isLoading.value
-                    ? 'MEMPROSES...'
-                    : 'PINDAI BARCODE',
+                _controller.isLoading.value ? 'MEMPROSES...' : 'PINDAI BARCODE',
                 style: TextStyle(
                   fontSize: isSmallScreen ? 15 : 16,
                   fontWeight: FontWeight.w600,
@@ -655,11 +652,12 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
         ));
   }
 
+  // Membuat daftar hasil pencarian
   Widget _buildSearchResults(bool isSmallScreen) {
     return Obx(() => _controller.searchResults.isEmpty
         ? const SizedBox.shrink()
         : Container(
-            constraints: const BoxConstraints(maxHeight: 200), // Limit height of results list
+            constraints: const BoxConstraints(maxHeight: 200),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
@@ -667,8 +665,8 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
                   Border.all(color: Colors.grey[300] ?? Colors.grey, width: 1),
             ),
             child: ListView.builder(
-              shrinkWrap: true, // Take only necessary space
-              physics: const ClampingScrollPhysics(), // No extra scrolling
+              shrinkWrap: true,
+              physics: const ClampingScrollPhysics(),
               itemCount: _controller.searchResults.length,
               itemBuilder: (context, index) {
                 final item = _controller.searchResults[index];
@@ -689,18 +687,17 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
                   ),
                   onTap: () {
                     try {
-                      _controller.addSearchResultToScannedItems(item); // Add selected item
-                      _searchTextController.clear(); // Clear search field
-                      _controller.searchController
-                          .clear(); // Ensure GetX controller's text is also cleared
-                      _controller.searchQuery.value = ''; // Reset search query
-                      _controller.searchResults.clear(); // Clear results
-                      _searchFocusNode.unfocus(); // Dismiss keyboard
-                      print('Search result tapped, unfocusing search field');
+                      _controller.addSearchResultToScannedItems(item);
+                      _searchTextController.clear();
+                      _controller.searchController.clear();
+                      _controller.searchQuery.value = '';
+                      _controller.searchResults.clear();
+                      _searchFocusNode.unfocus();
+                      print('Hasil pencarian ditekan, menghilangkan fokus');
                     } catch (e, stackTrace) {
-                      print('Error in search result tap: $e');
+                      print('Gagal saat menambah barang: $e');
                       print(stackTrace);
-                      Get.snackbar('Error', 'Failed to add item: $e');
+                      Get.snackbar('Error', 'Gagal menambah barang: $e');
                     }
                   },
                 );
@@ -709,9 +706,10 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
           ));
   }
 
+  // Membuat bagian daftar barang yang dipindai
   Widget _buildItemsSection({required bool isSmallScreen}) {
     return Container(
-      height: 300, // Fixed height for the scanned items list
+      height: 300,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -806,6 +804,7 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
     ).animate().fadeIn(delay: 300.ms);
   }
 
+  // Membuat daftar barang yang dipindai
   Widget _buildItemsList(bool isSmallScreen) {
     return ListView.builder(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -817,12 +816,14 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
     );
   }
 
+  // Membuat kartu untuk setiap barang yang dipindai
   Widget _buildItemCard(
       int index, Map<String, dynamic> item, bool isSmallScreen) {
-    final barcode = item['barang_kode']?.toString() ?? 'unknown_${item['barang_id'] ?? index}'; // Better unique key
+    final barcode = item['barang_kode']?.toString() ??
+        'unknown_${item['barang_id'] ?? index}';
     return Dismissible(
-      key: ValueKey(barcode), // Use ValueKey for efficient list updates
-      direction: DismissDirection.endToStart, // Swipe from right to left
+      key: ValueKey(barcode),
+      direction: DismissDirection.endToStart,
       background: Container(
         color: Colors.red,
         alignment: Alignment.centerRight,
@@ -832,24 +833,24 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
       onDismissed: (_) {
         try {
           _controller.removeScannedItem(index);
-          _searchFocusNode.unfocus(); // Dismiss keyboard
-          print('Item dismissed, unfocusing search field');
+          _searchFocusNode.unfocus();
+          print('Barang dihapus, menghilangkan fokus');
         } catch (e, stackTrace) {
-          print('Error in dismiss item: $e');
+          print('Gagal menghapus barang: $e');
           print(stackTrace);
-          Get.snackbar('Error', 'Failed to remove item: $e');
+          Get.snackbar('Error', 'Gagal menghapus barang: $e');
         }
       },
       child: GestureDetector(
         onTap: () {
           try {
             _showEditItemDialog(index, item, isSmallScreen);
-            _searchFocusNode.unfocus(); // Dismiss keyboard
-            print('Item card tapped, unfocusing search field');
+            _searchFocusNode.unfocus();
+            print('Kartu barang ditekan, menghilangkan fokus');
           } catch (e, stackTrace) {
-            print('Error in item card tap: $e');
+            print('Gagal saat mengedit barang: $e');
             print(stackTrace);
-            Get.snackbar('Error', 'Failed to edit item: $e');
+            Get.snackbar('Error', 'Gagal mengedit barang: $e');
           }
         },
         child: Container(
@@ -887,7 +888,8 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
                       children: [
                         Expanded(
                           child: Text(
-                            item['barang_nama']?.toString() ?? 'Tidak Diketahui',
+                            item['barang_nama']?.toString() ??
+                                'Tidak Diketahui',
                             style: TextStyle(
                               fontSize: isSmallScreen ? 15 : 16,
                               fontWeight: FontWeight.w600,
@@ -943,6 +945,7 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
     ).animate().fadeIn(delay: (200 + index * 100).ms);
   }
 
+  // Menampilkan dialog untuk mengedit jumlah barang
   void _showEditItemDialog(
       int index, Map<String, dynamic> item, bool isSmallScreen) {
     final quantityController =
@@ -979,21 +982,22 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
               keyboardType: TextInputType.number,
-              // Use onEditingComplete instead of onSubmitted if you want to save on "Done" button press.
               onEditingComplete: () {
                 try {
-                  final newQty = int.tryParse(quantityController.text) ?? item['quantity'] as int;
-                  if (newQty > 0) { // Ensure quantity is at least 1
+                  final newQty = int.tryParse(quantityController.text) ??
+                      item['quantity'] as int;
+                  if (newQty > 0) {
                     _controller.updateItemQuantity(index, newQty);
                     Get.back();
                   } else {
-                    Get.snackbar('Peringatan', 'Jumlah harus lebih besar dari 0');
+                    Get.snackbar(
+                        'Peringatan', 'Jumlah harus lebih besar dari 0');
                   }
-                  print('Edit dialog submitted, closing dialog');
+                  print('Dialog edit disubmit, menutup dialog');
                 } catch (e, stackTrace) {
-                  print('Error in edit dialog submit: $e');
+                  print('Gagal saat submit dialog edit: $e');
                   print(stackTrace);
-                  Get.snackbar('Error', 'Failed to update quantity: $e');
+                  Get.snackbar('Error', 'Gagal memperbarui jumlah: $e');
                 }
               },
             ),
@@ -1003,7 +1007,7 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
           TextButton(
             onPressed: () {
               Get.back();
-              print('Edit dialog cancelled, closing dialog');
+              print('Dialog edit dibatalkan, menutup dialog');
             },
             child: const Text(
               'Batal',
@@ -1015,17 +1019,17 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
               try {
                 final newQty = int.tryParse(quantityController.text) ??
                     item['quantity'] as int;
-                if (newQty > 0) { // Ensure quantity is at least 1
+                if (newQty > 0) {
                   _controller.updateItemQuantity(index, newQty);
                   Get.back();
                 } else {
                   Get.snackbar('Peringatan', 'Jumlah harus lebih besar dari 0');
                 }
-                print('Edit dialog saved, closing dialog');
+                print('Dialog edit disimpan, menutup dialog');
               } catch (e, stackTrace) {
-                print('Error in edit dialog save: $e');
+                print('Gagal saat menyimpan dialog edit: $e');
                 print(stackTrace);
-                Get.snackbar('Error', 'Failed to save quantity: $e');
+                Get.snackbar('Error', 'Gagal menyimpan jumlah: $e');
               }
             },
             style: ElevatedButton.styleFrom(
@@ -1044,6 +1048,7 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
     );
   }
 
+  // Membuat kontrol untuk mengatur jumlah barang
   Widget _buildQuantityControls(
       int index, Map<String, dynamic> item, bool isSmallScreen) {
     final quantity = item['quantity'] as int? ?? 1;
@@ -1065,17 +1070,17 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
             onPressed: () {
               try {
                 final newQty = quantity - 1;
-                if (newQty > 0) { // Quantity cannot go below 1
+                if (newQty > 0) {
                   _controller.updateItemQuantity(index, newQty);
-                  _searchFocusNode.unfocus(); // Dismiss keyboard after interaction
-                  print('Quantity decreased, unfocusing search field');
+                  _searchFocusNode.unfocus();
+                  print('Jumlah dikurangi, menghilangkan fokus');
                 } else {
                   Get.snackbar('Peringatan', 'Jumlah harus lebih besar dari 0');
                 }
               } catch (e, stackTrace) {
-                print('Error in decrease quantity: $e');
+                print('Gagal mengurangi jumlah: $e');
                 print(stackTrace);
-                Get.snackbar('Error', 'Failed to decrease quantity: $e');
+                Get.snackbar('Error', 'Gagal mengurangi jumlah: $e');
               }
             },
             padding: const EdgeInsets.all(4),
@@ -1102,12 +1107,12 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
               try {
                 final newQty = quantity + 1;
                 _controller.updateItemQuantity(index, newQty);
-                _searchFocusNode.unfocus(); // Dismiss keyboard after interaction
-                print('Quantity increased, unfocusing search field');
+                _searchFocusNode.unfocus();
+                print('Jumlah ditambah, menghilangkan fokus');
               } catch (e, stackTrace) {
-                print('Error in increase quantity: $e');
+                print('Gagal menambah jumlah: $e');
                 print(stackTrace);
-                Get.snackbar('Error', 'Failed to increase quantity: $e');
+                Get.snackbar('Error', 'Gagal menambah jumlah: $e');
               }
             },
             padding: const EdgeInsets.all(4),
@@ -1118,12 +1123,13 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
     );
   }
 
+  // Membuat bagian untuk tombol submit transaksi
   Widget _buildSubmitSection(bool isSmallScreen) {
     return Obx(() {
       final isButtonEnabled =
           _controller.selectedTransactionTypeId.value != 0 &&
               _controller.scannedItems.isNotEmpty &&
-              !_controller.isLoading.value; // Button disabled if loading
+              !_controller.isLoading.value;
       final typeName =
           _getTransactionTypeName(_controller.selectedTransactionTypeId.value);
       final typeColor = _getTransactionTypeColor(typeName);
@@ -1148,11 +1154,11 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
           ),
           const SizedBox(height: 16),
           ElevatedButton(
-            onPressed: isButtonEnabled // Only callable if button is enabled
+            onPressed: isButtonEnabled
                 ? () {
                     try {
-                      _searchFocusNode.unfocus(); // Dismiss keyboard before dialog
-                      print('Submit button pressed, unfocusing search field');
+                      _searchFocusNode.unfocus();
+                      print('Tombol submit ditekan, menghilangkan fokus');
                       Get.dialog(
                         AlertDialog(
                           shape: RoundedRectangleBorder(
@@ -1170,9 +1176,9 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
                           actions: [
                             TextButton(
                               onPressed: () {
-                                Get.back(); // Close the confirmation dialog
+                                Get.back();
                                 print(
-                                    'Submit dialog cancelled, closing dialog');
+                                    'Dialog submit dibatalkan, menutup dialog');
                               },
                               child: const Text(
                                 'Batal',
@@ -1182,19 +1188,15 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
                             ElevatedButton(
                               onPressed: () {
                                 try {
-                                  Get.back(); // Close the confirmation dialog
-                                  _controller.submitTransaction(); // Initiate transaction submission
-                                  // Do not call Get.back() again here if submitTransaction
-                                  // is meant to navigate away itself or you want to stay on the page.
-                                  // If it navigates, this second Get.back() might cause issues.
-                                  // If it doesn't navigate, you might want to show a success message.
+                                  Get.back();
+                                  _controller.submitTransaction();
                                   print(
-                                      'Submit dialog confirmed, initiating transaction submission');
+                                      'Dialog submit dikonfirmasi, memulai penyimpanan transaksi');
                                 } catch (e, stackTrace) {
-                                  print('Error in submit transaction: $e');
+                                  print('Gagal menyimpan transaksi: $e');
                                   print(stackTrace);
-                                  Get.snackbar('Error',
-                                      'Failed to submit transaction: $e');
+                                  Get.snackbar(
+                                      'Error', 'Gagal menyimpan transaksi: $e');
                                 }
                               },
                               style: ElevatedButton.styleFrom(
@@ -1212,25 +1214,25 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
                         ),
                       );
                     } catch (e, stackTrace) {
-                      print('Error in submit button: $e');
+                      print('Gagal membuka dialog submit: $e');
                       print(stackTrace);
-                      Get.snackbar('Error', 'Failed to open submit dialog: $e');
+                      Get.snackbar('Error', 'Gagal membuka dialog submit: $e');
                     }
                   }
-                : null, // Button is disabled
+                : null,
             style: ElevatedButton.styleFrom(
               minimumSize: const Size(double.infinity, 56),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
               backgroundColor:
-                  isButtonEnabled ? const Color(0xFF4CAF50) : Colors.grey, // Visual feedback for disabled state
+                  isButtonEnabled ? const Color(0xFF4CAF50) : Colors.grey,
               elevation: 2,
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                if (_controller.isLoading.value) ...[ // Show spinner if loading
+                if (_controller.isLoading.value) ...[
                   const SizedBox(
                     width: 20,
                     height: 20,
@@ -1240,7 +1242,7 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                ] else ...[ // Show icon if not loading
+                ] else ...[
                   const Icon(
                     Icons.save,
                     color: Colors.white,
@@ -1262,7 +1264,7 @@ class _TransactionCreatePageState extends State<TransactionCreatePage> {
             ),
           ),
         ],
-      ).animate().fadeIn(delay: 400.ms).scale( // Animations for visual appeal
+      ).animate().fadeIn(delay: 400.ms).scale(
             begin:
                 isButtonEnabled ? const Offset(0.98, 0.98) : const Offset(1, 1),
             end:

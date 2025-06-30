@@ -47,7 +47,7 @@ class _DashboardPageState extends State<DashboardPage>
   final Color backgroundColor = const Color(0xFFF9FAFB);
 
   final List<ActionCardData> _actionCards = [
-    ActionCardData(
+    const ActionCardData(
       icon: Icons.inventory_2_outlined,
       title: 'Satuan',
       subtitle: 'Kelola satuan',
@@ -56,7 +56,7 @@ class _DashboardPageState extends State<DashboardPage>
       route: RoutesName.satuanList,
       delay: 200,
     ),
-    ActionCardData(
+    const ActionCardData(
       icon: Icons.category_outlined,
       title: 'Kategori',
       subtitle: 'Kategori barang',

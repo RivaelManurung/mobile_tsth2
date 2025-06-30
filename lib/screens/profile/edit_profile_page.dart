@@ -108,7 +108,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
           _controller.nameController.text = _currentUser.name;
           _controller.emailController.text = _currentUser.email;
           _controller.phoneController.text = _currentUser.phoneNumber ?? '';
-          _controller.addressController.text = _currentUser.address ?? '';
+          // _controller.addressController.text = _currentUser.address ?? '';
           _selectedImage = null;
         });
         _authController.updateUser(updatedUser);
@@ -411,15 +411,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
               keyboardType: TextInputType.phone,
               validator: _controller.validatePhone,
             ),
-            const SizedBox(height: 16),
-            _buildTextField(
-              controller: _controller.addressController,
-              label: 'Alamat (Opsional)',
-              icon: Icons.location_on_outlined,
-              keyboardType: TextInputType.streetAddress,
-              maxLines: 3,
-              validator: _controller.validateAddress,
-            ),
+            
           ],
         ),
       ),
