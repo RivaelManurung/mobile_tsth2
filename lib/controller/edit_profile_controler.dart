@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:inventory_tsth2/Model/user_model.dart';
-import 'package:inventory_tsth2/config/api.dart'; // Berisi konfigurasi API seperti baseUrl
+import 'package:inventory_tsth2/core/constant/api_constant.dart'; // Berisi konfigurasi API seperti baseUrl
 import 'package:inventory_tsth2/services/user_services.dart'; // Layanan untuk operasi API pengguna
 
 class EditProfileController extends GetxController {

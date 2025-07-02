@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:inventory_tsth2/core/routes/routes_name.dart';
+import 'package:inventory_tsth2/routes/routes_name.dart';
 import 'package:inventory_tsth2/screens/auth/login.dart' as auth;
 import 'package:inventory_tsth2/screens/auth/onboarding.dart';
 import 'package:inventory_tsth2/screens/barang/barang_page.dart';

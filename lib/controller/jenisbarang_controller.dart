@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:inventory_tsth2/Model/jenis_barang_model.dart';
-import 'package:inventory_tsth2/core/routes/routes_name.dart';
+import 'package:inventory_tsth2/routes/routes_name.dart';
 import 'package:inventory_tsth2/services/jenis_barang_service.dart';
 
 class JenisBarangController extends GetxController {

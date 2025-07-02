@@ -1,7 +1,7 @@
 import 'package:get/get.dart';
 import 'package:inventory_tsth2/Model/barang_gudang_model.dart';
 import 'package:inventory_tsth2/Model/barang_model.dart';
-import 'package:inventory_tsth2/core/routes/routes_name.dart';
+import 'package:inventory_tsth2/routes/routes_name.dart';
 import 'package:inventory_tsth2/services/barang_service.dart';
 
 class BarangController extends GetxController {

@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:inventory_tsth2/Model/barang_category_model.dart';
-import 'package:inventory_tsth2/core/routes/routes_name.dart';
+import 'package:inventory_tsth2/routes/routes_name.dart';
 import 'package:inventory_tsth2/services/barang_category_service.dart';
 
 class BarangCategoryController extends GetxController {

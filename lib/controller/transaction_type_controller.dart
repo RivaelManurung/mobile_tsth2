@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:inventory_tsth2/Model/transaction_type_model.dart';
-import 'package:inventory_tsth2/core/routes/routes_name.dart';
+import 'package:inventory_tsth2/routes/routes_name.dart';
 import 'package:inventory_tsth2/services/transaction_type_service.dart';
 
 class TransactionTypeController extends GetxController {

@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:inventory_tsth2/config/api.dart'; // Adjust to your API config file
+import 'package:inventory_tsth2/core/constant/api_constant.dart'; // Adjust to your API config file
 
 class NotificationService {
   final Dio _dio;

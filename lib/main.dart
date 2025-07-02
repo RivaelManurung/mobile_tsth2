@@ -3,8 +3,8 @@ import 'package:get/get.dart';
 import 'package:inventory_tsth2/controller/profile_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:inventory_tsth2/controller/Auth/auth_controller.dart';
-import 'package:inventory_tsth2/core/routes/routes.dart';
-import 'package:inventory_tsth2/core/routes/routes_name.dart';
+import 'package:inventory_tsth2/routes/routes.dart';
+import 'package:inventory_tsth2/routes/routes_name.dart';
 import 'package:inventory_tsth2/services/auth_service.dart';
 import 'package:intl/date_symbol_data_local.dart'; // Import for locale data
 

@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:inventory_tsth2/Model/jenis_barang_model.dart';
-import 'package:inventory_tsth2/config/api.dart';
+import 'package:inventory_tsth2/core/constant/api_constant.dart';
 import 'package:inventory_tsth2/services/auth_service.dart';
 
 class JenisBarangService {

@@ -6,7 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:inventory_tsth2/controller/Auth/auth_controller.dart';
 import 'package:inventory_tsth2/controller/profile_controller.dart';
-import 'package:inventory_tsth2/core/routes/routes_name.dart';
+import 'package:inventory_tsth2/routes/routes_name.dart';
 import 'package:inventory_tsth2/screens/notifikasi/notifikasi_page.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter_animate/flutter_animate.dart';

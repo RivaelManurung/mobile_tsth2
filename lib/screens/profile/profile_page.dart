@@ -5,7 +5,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:inventory_tsth2/Model/user_model.dart';
 import 'package:inventory_tsth2/controller/profile_controller.dart';
-import 'package:inventory_tsth2/core/routes/routes_name.dart';
+import 'package:inventory_tsth2/routes/routes_name.dart';
 import 'package:inventory_tsth2/services/user_services.dart';
 import 'edit_profile_page.dart';
 
