@@ -1,40 +1,31 @@
-import 'dart:convert';
-import 'package:inventory_tsth2/features/auth/domain/entities/user.dart';
+import 'package:inventory_tsth2/features/authentication/domain/entities/user.dart';
 
 class UserModel extends User {
   const UserModel({
     required super.id,
     required super.name,
-    required super.email,
+    super.email,
     required super.role,
-    super.token, // Token kini menjadi bagian dari entitas/model
+    super.token,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
+    final user = json['user'];
     return UserModel(
-      id: json['id'],
-      name: json['name'],
-      email: json['email'],
-      role: json['role'],
-      token: json['token'], // Ambil token jika ada
+      id: user['id'],
+      name: user['name'],
+      email: user['email'],
+      role: user['role'],
+      token: json['token'],
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'email': email,
-      'role': role,
-      'token': token,
-    };
-  }
-
-  // Helper untuk mengubah objek menjadi string JSON
-  String toJsonString() => jsonEncode(toJson());
-
-  // Helper untuk membuat objek dari string JSON
-  factory UserModel.fromJsonString(String jsonString) {
-    return UserModel.fromJson(jsonDecode(jsonString));
+  factory UserModel.fromUserJson(Map<String, dynamic> user) {
+    return UserModel(
+      id: user['id'],
+      name: user['name'],
+      email: user['email'],
+      role: user['role'],
+    );
   }
 }

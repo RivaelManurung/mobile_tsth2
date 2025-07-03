@@ -66,6 +66,8 @@ dev_dependencies:
   dartz: ^0.10.1
   connectivity_plus: ^6.1.4
   cached_network_image: ^3.4.1
+  flutter_bloc: ^9.1.1
+  get_it: ^8.0.3
 
 
 

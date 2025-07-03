@@ -3,14 +3,14 @@ import 'package:equatable/equatable.dart';
 class User extends Equatable {
   final int id;
   final String name;
-  final String email;
+  final String? email;
   final String role;
-  final String? token; // Token bisa null
+  final String? token;
 
   const User({
     required this.id,
     required this.name,
-    required this.email,
+    this.email,
     required this.role,
     this.token,
   });

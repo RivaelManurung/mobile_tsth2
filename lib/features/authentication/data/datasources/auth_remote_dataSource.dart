@@ -1,9 +1,13 @@
-import 'dart:convert';
 import 'package:dio/dio.dart';
-import 'package:inventory_tsth2/core/constants/api_constant.dart';
+import 'package:inventory_tsth2/core/constant/api_constant.dart'; // Your API constants
 import 'package:inventory_tsth2/core/error/exceptions.dart';
-import 'package:inventory_tsth2/features/auth/data/datasources/auth_remote_data_source.dart';
-import 'package:inventory_tsth2/features/auth/data/models/user_model.dart';
+import 'package:inventory_tsth2/features/authentication/data/models/user_model.dart'; // Custom exceptions
+
+abstract class AuthRemoteDataSource {
+  Future<UserModel> login(String name, String password);
+  Future<void> logout(String token);
+  Future<UserModel> getLoggedInUser(String token);
+}
 
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   final Dio client;
@@ -19,17 +23,12 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       );
 
       if (response.statusCode == 200 && response.data['status'] == 'success') {
-        final token = response.data['data']['token'] as String;
-        final user = response.data['data']['user'] as Map<String, dynamic>;
-        
-        // Menambahkan token ke dalam data user sebelum di-decode menjadi UserModel
-        user['token'] = token;
-        return UserModel.fromJson(user);
+        return UserModel.fromJson(response.data['data']);
       } else {
         throw ServerException(response.data['message'] ?? 'Login failed');
       }
     } on DioException catch (e) {
-      throw ServerException(e.response?.data['message'] ?? 'Server Error');
+      throw ServerException(e.response?.data['message'] ?? 'Network Error');
     }
   }
 
@@ -41,27 +40,25 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
     } on DioException catch (e) {
-      // Gagal logout di server tidak menghentikan proses logout di client
-      print('Logout error on server: ${e.message}');
+      // We can ignore logout errors on the server side as we clear local data anyway
+      print('Logout error: ${e.response?.data['message'] ?? e.message}');
     }
   }
-
+  
   @override
-  Future<UserModel> verifyToken(String token) async {
+  Future<UserModel> getLoggedInUser(String token) async {
     try {
       final response = await client.get(
         '/auth/user',
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
       if (response.statusCode == 200 && response.data['status'] == 'success') {
-         final user = response.data['data'] as Map<String, dynamic>;
-         user['token'] = token;
-        return UserModel.fromJson(user);
+        return UserModel.fromJson(response.data['data']);
       } else {
-        throw ServerException('Invalid Token');
+        throw AuthException('Invalid or expired token.');
       }
     } on DioException {
-      throw ServerException('Invalid Token');
+      throw AuthException('Invalid or expired token.');
     }
   }
 }

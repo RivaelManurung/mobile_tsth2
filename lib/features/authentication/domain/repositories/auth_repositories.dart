@@ -4,6 +4,6 @@ import 'package:inventory_tsth2/features/authentication/domain/entities/user.dar
 
 abstract class AuthRepository {
   Future<Either<Failures, User>> login(String name, String password);
-  Future<Either<Failures, void>> logout();
-  Future<Either<Failures, User>> checkLoginStatus();
+  Future<Either<Failures, Unit>> logout();
+  Future<Either<Failures, User>> getLoggedInUser();
 }

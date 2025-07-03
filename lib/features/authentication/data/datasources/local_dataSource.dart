@@ -1,37 +1,56 @@
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:inventory_tsth2/features/auth/data/datasources/auth_local_data_source.dart';
+import 'package:inventory_tsth2/features/authentication/data/models/user_model.dart';
 
-const CACHED_AUTH_TOKEN = 'CACHED_AUTH_TOKEN';
-const CACHED_USER = 'CACHED_USER';
+const String authTokenKey = "authToken";
+const String userKey = "user";
 
-class AuthLocalDataSourceImpl implements AuthLocalDataSource {
+abstract class LocalDatasource {
+  Future<void> cacheAuthToken(String token);
+  Future<void> cacheUser(UserModel user);
+  Future<String?> getAuthToken();
+  Future<UserModel?> getUser();
+  Future<void> clearCache();
+}
+
+class LocalDatasourceImpl implements LocalDatasource {
   final FlutterSecureStorage secureStorage;
 
-  AuthLocalDataSourceImpl({required this.secureStorage});
+  LocalDatasourceImpl(this.secureStorage);
 
   @override
   Future<void> cacheAuthToken(String token) {
-    return secureStorage.write(key: CACHED_AUTH_TOKEN, value: token);
+    return secureStorage.write(key: authTokenKey, value: token);
   }
 
   @override
-  Future<void> cacheUser(String userJson) {
-     return secureStorage.write(key: CACHED_USER, value: userJson);
+  Future<void> cacheUser(UserModel user) {
+     final userJson = {
+      'id': user.id,
+      'name': user.name,
+      'email': user.email,
+      'role': user.role,
+    };
+    return secureStorage.write(key: userKey, value: jsonEncode(userJson));
   }
-
+  
   @override
   Future<String?> getAuthToken() {
-    return secureStorage.read(key: CACHED_AUTH_TOKEN);
-  }
-   @override
-  Future<String?> getUser() {
-    return secureStorage.read(key: CACHED_USER);
+    return secureStorage.read(key: authTokenKey);
   }
 
   @override
-  Future<void> clearAll() async {
-    await secureStorage.delete(key: CACHED_AUTH_TOKEN);
-    await secureStorage.delete(key: CACHED_USER);
+  Future<UserModel?> getUser() async {
+    final userString = await secureStorage.read(key: userKey);
+    if (userString != null) {
+      return UserModel.fromUserJson(jsonDecode(userString));
+    }
+    return null;
+  }
+  
+  @override
+  Future<void> clearCache() async {
+    await secureStorage.delete(key: authTokenKey);
+    await secureStorage.delete(key: userKey);
   }
 }
