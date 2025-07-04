@@ -28,4 +28,15 @@ class UserModel extends User {
       role: user['role'],
     );
   }
+   static UserModel fromEntity(User user) {
+    return UserModel(
+      // Map all required fields from User to UserModel here
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      // Add other fields as necessary
+    );
+  }
+  
 }
